@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Reset password | PULANOVA AI{% endblock %}
+{% block page %}reset{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>YOUR PRIVATE SPACE</p>
+  <h1 data-t>Choose a new password</h1>
+  <p data-t>Enter a new password for your account. You will be signed out on every device.</p>
+</section>
+<section class="panel narrow">
+  <form id="reset-form" class="stack" autocomplete="off">
+    <label class="field-label" for="new-password" data-t>New password (at least 8 characters)</label>
+    <input id="new-password" type="password" minlength="8" maxlength="128" required autocomplete="new-password">
+    <label class="field-label" for="new-password2" data-t>Type it again</label>
+    <input id="new-password2" type="password" minlength="8" maxlength="128" required autocomplete="new-password">
+    <button class="button" type="submit" data-t>Change password</button>
+  </form>
+  <p id="reset-status" class="status-text" role="status"></p>
+  <p><a href="{{ url_for('account_page') }}" data-nav data-t>Back to sign in</a></p>
+</section>
+{% endblock %}

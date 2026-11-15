@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Profiles | PULANOVA AI{% endblock %}
+{% block page %}profiles{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>CUSTOM ACCESSIBILITY PROFILES</p>
+  <h1 data-t>My profiles</h1>
+  <p data-t>A profile saves how PULANOVA talks to you. Make one for each situation or for people with more than one need.</p>
+</section>
+
+<section class="panel">
+  <div class="section-heading-inline"><h2 data-t>Choose a profile</h2>
+    <button class="button" id="new-profile" data-t>New profile</button></div>
+  <ul id="profile-list" class="profile-list"></ul>
+  <p id="profile-status" class="status-text" role="status"></p>
+</section>
+
+<section class="panel" id="editor-panel" hidden>
+  <h2 id="editor-title" data-t>Edit profile</h2>
+  <form id="profile-form" class="profile-form">
+    <label class="field-label" for="pf-name" data-t>Profile name</label>
+    <input id="pf-name" maxlength="60" required>
+
+    <fieldset>
+      <legend data-t>My needs</legend>
+      <label class="toggle-row"><input type="checkbox" id="pf-vision"> <span data-t>I have difficulty seeing</span></label>
+      <label class="toggle-row"><input type="checkbox" id="pf-hearing"> <span data-t>I have difficulty hearing</span></label>
+    </fieldset>
+
+    <fieldset>
+      <legend data-t>Display and voice</legend>
+      <label class="field-label" for="pf-language" data-t>Language</label>
+      <select id="pf-language"><option value="en">English</option><option value="ta">தமிழ்</option></select>
+      <label class="field-label" for="pf-font" data-t>Text size</label>
+      <select id="pf-font"><option value="100">Normal</option><option value="120">Large</option><option value="140">Extra large</option></select>
+      <label class="field-label" for="pf-caption" data-t>Caption size</label>
+      <select id="pf-caption"><option value="medium">Medium</option><option value="large">Large</option><option value="xlarge">Extra large</option></select>
+      <label class="field-label" for="pf-rate" data-t>Speaking speed</label>
+      <input type="range" id="pf-rate" min="0.6" max="1.5" step="0.05" value="1">
+      <label class="toggle-row"><input type="checkbox" id="pf-contrast"> <span data-t>High contrast</span></label>
+      <label class="toggle-row"><input type="checkbox" id="pf-voicefirst"> <span data-t>Voice-first: ask me to start voice on opening</span></label>
+      <label class="toggle-row"><input type="checkbox" id="pf-announce"> <span data-t>Read each page aloud when it opens</span></label>
+      <label class="toggle-row"><input type="checkbox" id="pf-braille"> <span data-t>Braille mode (Braille bar and short messages)</span></label>
+    </fieldset>
+
+    <fieldset>
+      <legend data-t>Alerts</legend>
+      <label class="toggle-row"><input type="checkbox" id="pf-flash"> <span data-t>Screen flash</span></label>
+      <label class="toggle-row"><input type="checkbox" id="pf-vibrate"> <span data-t>Vibration</span></label>
+      <label class="toggle-row"><input type="checkbox" id="pf-beep"> <span data-t>Play beeps when vibration is not available</span></label>
+      <div id="pf-sounds" class="check-grid"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend data-t>Vibration patterns</legend>
+      <p class="hint" data-t>Numbers are milliseconds: vibrate, pause, vibrate, pause… Example: 150,100,150</p>
+      <div id="pf-patterns" class="pattern-editor"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend data-t>Emergency</legend>
+      <label class="field-label" for="pf-help" data-t>Message for the help card and SMS</label>
+      <input id="pf-help" maxlength="200">
+    </fieldset>
+
+    <div class="button-row">
+      <button class="button" type="submit" data-t>Save profile</button>
+      <button class="button button-secondary" type="button" id="pf-cancel" data-t>Cancel</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

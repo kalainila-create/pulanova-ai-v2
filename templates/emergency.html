@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Emergency | PULANOVA AI{% endblock %}
+{% block page %}emergency{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>TACTILE EMERGENCY ASSISTANCE</p>
+  <h1 data-t>Emergency</h1>
+  <p data-t>One big button. You feel, hear and see each step. PULANOVA prepares a message with your location. You must press send yourself.</p>
+</section>
+
+<section class="two-column wide-left">
+  <article class="panel sos-panel">
+    <button type="button" id="sos-button" class="sos-button" aria-describedby="sos-help">
+      <span class="sos-big">SOS</span><span class="sos-small" data-t>Press for help</span>
+    </button>
+    <p id="sos-help" class="hint" data-t>A 5 second countdown starts so you can cancel. Say “cancel”, press Escape, or press the Cancel button.</p>
+    <div id="sos-countdown" class="sos-countdown" role="status" aria-live="assertive" hidden></div>
+    <button type="button" id="sos-cancel" class="button button-secondary" hidden data-t>Cancel emergency</button>
+
+    <div id="help-card" class="help-card" role="alert" hidden>
+      <h2 data-t>I NEED HELP</h2>
+      <p id="help-message" class="help-message"></p>
+      <p id="help-location" class="help-location"></p>
+      <div id="help-actions" class="help-actions"></div>
+      <button type="button" id="help-close" class="button button-secondary" data-t>Close help card</button>
+    </div>
+  </article>
+
+  <article class="panel">
+    <h2 data-t>Emergency options</h2>
+    <label class="toggle-row"><input type="checkbox" id="sos-alarm" checked> <span data-t>Play a loud alarm sound to attract attention</span></label>
+    <label class="toggle-row"><input type="checkbox" id="sos-sms" checked> <span data-t>Prepare an SMS to my contacts</span></label>
+    <p class="hint" data-t>The message text comes from your active profile. Change it in Profiles.</p>
+    <h3 data-t>Tactile signals you will feel</h3>
+    <ul class="simple-list small">
+      <li data-t>Short ticks: countdown</li>
+      <li data-t>Long SOS pattern: emergency started</li>
+      <li data-t>Two short pulses: location found</li>
+      <li data-t>One long pulse: message ready to send</li>
+    </ul>
+    <p class="hint" data-t>In India you can also call 112 for emergency services.</p>
+  </article>
+</section>
+
+<section class="panel">
+  <h2 data-t>Emergency contacts</h2>
+  <form id="contact-form" class="contact-form">
+    <label><span data-t>Name</span> <input name="name" maxlength="80" required></label>
+    <label><span data-t>Phone number</span> <input name="phone" maxlength="30" inputmode="tel" required></label>
+    <label><span data-t>Relationship</span> <input name="relationship" maxlength="60"></label>
+    <button class="button" type="submit" data-t>Add contact</button>
+  </form>
+  <p id="contact-status" class="status-text" role="status"></p>
+  <ul id="contact-list" class="contact-list"></ul>
+</section>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}PULANOVA AI | Home{% endblock %}
+{% block page %}home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow" data-t>BEYOND SENSES, BEYOND LIMITS</p>
+    <h1 data-t>One assistant. Multiple ways to communicate.</h1>
+    <p class="hero-copy" data-t>Voice, touch, vision and captions work together. You choose how PULANOVA talks to you.</p>
+    <div class="hero-actions">
+      <button type="button" class="button button-light" id="hero-voice" data-t>Start voice assistant</button>
+      <a class="button button-outline" href="{{ url_for('profiles_page') }}" data-nav data-t>Choose my profile</a>
+    </div>
+  </div>
+  <div class="hero-badges" aria-hidden="true"><span>🗣️ Voice</span><span>✋ Touch</span><span>👁️ Vision</span><span>💬 Captions</span></div>
+</section>
+
+<section aria-labelledby="quick-title">
+  <h2 id="quick-title" class="section-title" data-t>Quick actions</h2>
+  <div class="tile-grid">
+    <a class="tile" href="{{ url_for('visual') }}?do=identify" data-nav><span class="tile-icon" aria-hidden="true">🌍</span><strong data-t>Identify surroundings</strong><small data-t>Describe objects around me</small></a>
+    <a class="tile" href="{{ url_for('visual') }}?do=text" data-nav><span class="tile-icon" aria-hidden="true">📖</span><strong data-t>Read text</strong><small data-t>Read printed text aloud</small></a>
+    <a class="tile" href="{{ url_for('visual') }}?do=find" data-nav><span class="tile-icon" aria-hidden="true">🎒</span><strong data-t>Find my object</strong><small data-t>Guide me to my bag or phone</small></a>
+    <a class="tile" href="{{ url_for('visual') }}?do=currency" data-nav><span class="tile-icon" aria-hidden="true">₹</span><strong data-t>Indian currency</strong><small data-t>Identify a rupee note</small></a>
+    <a class="tile" href="{{ url_for('hearing') }}?do=sound" data-nav><span class="tile-icon" aria-hidden="true">🔔</span><strong data-t>Sound identity</strong><small data-t>Doorbell, horn, siren alerts</small></a>
+    <a class="tile" href="{{ url_for('bridge') }}" data-nav><span class="tile-icon" aria-hidden="true">💬</span><strong data-t>Conversation bridge</strong><small data-t>Talk with captions and typing</small></a>
+    <a class="tile" href="{{ url_for('tactile') }}" data-nav><span class="tile-icon" aria-hidden="true">✋</span><strong data-t>Tactile tools</strong><small data-t>Vibration, Morse and Braille</small></a>
+    <a class="tile tile-sos" href="{{ url_for('emergency') }}" data-nav><span class="tile-icon" aria-hidden="true">🆘</span><strong data-t>Emergency</strong><small data-t>Call for help with touch or voice</small></a>
+  </div>
+</section>
+
+<section class="stats-grid" aria-label="Summary">
+  <article class="stat-card"><span data-t>Saved contacts</span><strong id="stat-contacts">—</strong></article>
+  <article class="stat-card"><span data-t>Total events</span><strong id="stat-events">—</strong></article>
+  <article class="stat-card"><span data-t>Sound alerts</span><strong id="stat-sounds">—</strong></article>
+  <article class="stat-card"><span data-t>Danger-labelled events</span><strong id="stat-danger">—</strong></article>
+</section>
+
+<section class="notice">
+  <strong data-t>Important safety note:</strong>
+  <span data-t>Object detection, sound detection and vibration patterns are experimental. They can miss hazards or give false alerts. Do not rely on PULANOVA as your only mobility, hearing or emergency aid.</span>
+</section>
+{% endblock %}

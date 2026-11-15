@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Conversation Bridge | PULANOVA AI{% endblock %}
+{% block page %}bridge{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>HEARING ACCESSIBILITY</p>
+  <h1 data-t>Conversation bridge</h1>
+  <p data-t>Put the phone between you and the other person. Their speech becomes large captions. Your typed or tapped replies are spoken aloud.</p>
+</section>
+
+<section class="two-column wide-left">
+  <article class="panel">
+    <h2 data-t>Conversation</h2>
+    <div id="chat-log" class="chat-log" role="log" aria-live="polite" aria-label="Conversation" data-t-aria></div>
+    <p id="interim" class="interim" aria-hidden="true"></p>
+    <form id="reply-form" class="reply-form" autocomplete="off">
+      <label class="sr-only" for="reply-text" data-t>Type your reply</label>
+      <input id="reply-text" maxlength="300" placeholder="Type your reply" data-t-ph>
+      <button class="button" type="submit" data-t>Speak</button>
+    </form>
+    <div class="quick-phrases" id="quick-phrases" role="group" aria-label="Quick replies" data-t-aria></div>
+  </article>
+
+  <article class="panel">
+    <h2 data-t>Controls</h2>
+    <div class="button-row">
+      <button class="button" id="bridge-start" data-t>Start listening</button>
+      <button class="button button-secondary" id="bridge-stop" disabled data-t>Stop listening</button>
+    </div>
+    <p id="bridge-status" class="status-text" role="status" data-t>Not listening.</p>
+    <label class="field-label" for="bridge-lang" data-t>The other person speaks</label>
+    <select id="bridge-lang">
+      <option value="en-IN">English</option>
+      <option value="ta-IN">தமிழ்</option>
+      <option value="hi-IN">हिन्दी</option>
+    </select>
+    <label class="field-label" for="reply-lang" data-t>Speak my replies in</label>
+    <select id="reply-lang">
+      <option value="en-IN">English</option>
+      <option value="ta-IN">தமிழ்</option>
+      <option value="hi-IN">हिन्दी</option>
+    </select>
+    <label class="toggle-row"><input type="checkbox" id="bridge-vibrate" checked> <span data-t>Vibrate when they finish speaking</span></label>
+    <div class="button-row">
+      <button class="button button-secondary" id="copy-chat" data-t>Copy conversation</button>
+      <button class="button button-secondary" id="clear-chat" data-t>Clear</button>
+    </div>
+  </article>
+</section>
+{% endblock %}

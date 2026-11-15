@@ -1,0 +1,10 @@
+{
+  "name": "PULANOVA AI",
+  "short_name": "PULANOVA",
+  "description": "Multisensory accessibility assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14284b",
+  "theme_color": "#14284b",
+  "icons": [{ "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

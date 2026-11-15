@@ -1,0 +1,30 @@
+# Optional: Render "Blueprint". You can also enter the same values by hand in the Render dashboard.
+services:
+  - type: web
+    name: pulanova-ai
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: PULANOVA_ENV
+        value: production
+      - key: PULANOVA_SECRET
+        generateValue: true
+      - key: PULANOVA_SECURE_COOKIES
+        value: "1"
+      - key: PULANOVA_PROXY
+        value: "1"
+      - key: DATABASE_URL        # paste your Neon connection string in the dashboard
+        sync: false
+      - key: PULANOVA_BASE_URL   # e.g. https://pulanova-ai.onrender.com
+        sync: false
+      - key: PULANOVA_CONTACT_EMAIL
+        sync: false
+      - key: PULANOVA_OPERATOR
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false

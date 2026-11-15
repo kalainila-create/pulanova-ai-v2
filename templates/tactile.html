@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Tactile Tools | PULANOVA AI{% endblock %}
+{% block page %}tactile{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>DEAFBLIND AND TOUCH ACCESS</p>
+  <h1 data-t>Tactile tools</h1>
+  <p data-t>Communicate through touch. A phone's vibration motor can send simple signals, not full sentences. For detailed text, use a Braille display with your screen reader.</p>
+</section>
+
+<section class="two-column">
+  <article class="panel">
+    <h2 data-t>Tactile notifications</h2>
+    <p data-t>Press a button to feel each alert pattern.</p>
+    <div id="tactile-buttons" class="tile-grid compact"></div>
+    <p id="tactile-status" class="status-text" role="status"></p>
+  </article>
+
+  <article class="panel">
+    <h2 data-t>Haptic navigation</h2>
+    <p data-t>Learn the direction signals. Use them with a guide, cane or helper.</p>
+    <div id="nav-buttons" class="tile-grid compact"></div>
+    <ul class="simple-list small" id="nav-legend"></ul>
+  </article>
+</section>
+
+<section class="two-column">
+  <article class="panel">
+    <h2 data-t>Custom tactile messages</h2>
+    <p data-t>Tap a rhythm on the pad, name it, and save it to your profile. Example: your own pattern for “Come here”.</p>
+    <button type="button" id="tap-pad" class="tap-pad" aria-label="Tap pad: press and hold for long signals, tap quickly for short ones" data-t-aria><span data-t>Tap rhythm here</span></button>
+    <p id="tap-readout" class="status-text" role="status"></p>
+    <div class="button-row">
+      <button class="button button-secondary" id="tap-play" data-t>Play rhythm</button>
+      <button class="button button-secondary" id="tap-reset" data-t>Reset</button>
+    </div>
+    <form id="tactile-form" class="inline-form">
+      <label class="sr-only" for="tactile-label" data-t>Message name</label>
+      <input id="tactile-label" maxlength="60" placeholder="Message name" data-t-ph required>
+      <button class="button" type="submit" data-t>Save message</button>
+    </form>
+    <ul id="tactile-list" class="contact-list"></ul>
+  </article>
+
+  <article class="panel">
+    <h2 data-t>Morse to vibration</h2>
+    <p data-t>Type a short message and feel it as Morse code. Use it to send words by touch.</p>
+    <label class="field-label" for="morse-text" data-t>Message</label>
+    <input id="morse-text" maxlength="40" value="HELLO">
+    <p id="morse-view" class="morse-view" aria-hidden="true"></p>
+    <div class="button-row">
+      <button class="button" id="morse-play" data-t>Vibrate message</button>
+      <button class="button button-secondary" id="morse-stop" data-t>Stop</button>
+    </div>
+  </article>
+</section>
+
+<section class="panel">
+  <h2 data-t>Braille output</h2>
+  <p data-t>Turn text into Braille dots to read on screen or copy. For a refreshable Braille display, connect it to your screen reader (TalkBack, VoiceOver, NVDA or JAWS). PULANOVA sends every alert and caption to the screen reader.</p>
+  <label class="toggle-row"><input type="checkbox" id="braille-mode"> <span data-t>Show a Braille bar on every page and keep messages short</span></label>
+  <label class="field-label" for="braille-in" data-t>Text to convert</label>
+  <textarea id="braille-in" rows="2">PULANOVA helps me 24 hours</textarea>
+  <div id="braille-out" class="braille-out" aria-label="Braille preview" data-t-aria></div>
+  <div class="button-row"><button class="button button-secondary" id="braille-copy" data-t>Copy Braille</button></div>
+  <p class="hint" data-t>This preview uses English uncontracted Braille. Tamil text should be read through the screen reader's own Braille table.</p>
+</section>
+{% endblock %}

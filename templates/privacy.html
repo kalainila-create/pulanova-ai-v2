@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy | PULANOVA AI{% endblock %}
+{% block page %}privacy{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>YOUR PRIVACY</p>
+  <h1 data-t>Privacy policy</h1>
+  <p>Last updated: 15 November 2026</p>
+</section>
+
+<section class="panel prose">
+  <h2>Who runs PULANOVA</h2>
+  <p>PULANOVA AI is an accessibility project{% if operator %} run by {{ operator }}{% endif %}. Questions or requests about your data:
+  {% if contact_email %}<a href="mailto:{{ contact_email }}">{{ contact_email }}</a>{% else %}contact the person who gave you this link{% endif %}.</p>
+
+  <h2>What we store</h2>
+  <ul>
+    <li><strong>Guest use:</strong> a random private account tied to a cookie in your browser. No name or email is needed.</li>
+    <li><strong>If you create an account:</strong> your email, your name (optional) and your password as a salted hash. We cannot read your password.</li>
+    <li><strong>What you add:</strong> emergency contacts (names and phone numbers of other people, so only add people who are happy to be listed), your accessibility profiles and settings, and an activity log such as "sound alert detected" or "emergency started". The log can hint at how you use hearing or vision features, so you can clear it any time.</li>
+    <li><strong>Password reset:</strong> a one-time reset code, kept for 30 minutes and then removed.</li>
+  </ul>
+
+  <h2>What we do not store</h2>
+  <ul>
+    <li><strong>Camera pictures and microphone sound</strong> are analysed inside your browser. They are not uploaded to or saved by PULANOVA.</li>
+    <li><strong>Your location</strong> is read only when you press SOS. It is placed in the message you send and is not saved in our database.</li>
+    <li>No advertising, no analytics and no tracking cookies.</li>
+  </ul>
+
+  <h2>Other companies involved</h2>
+  <ul>
+    <li><strong>Hosting and database:</strong> the host that runs this site and the database provider store the data above for us.</li>
+    <li><strong>Email:</strong> a transactional email provider delivers password-reset emails, so it sees your email address.</li>
+    <li><strong>Your browser's speech service:</strong> captions, voice commands and spoken output may send audio or text to your browser's maker (for example Google in Chrome or Apple in Safari).</li>
+    <li><strong>Model downloads:</strong> the first time you use the camera, sound or text-reading tools, your browser downloads AI files from public servers (such as jsDelivr and Google). Those servers can see your IP address.</li>
+  </ul>
+
+  <h2>Cookies</h2>
+  <p>One cookie keeps you signed in or keeps your guest space private. It is needed for the site to work. We set no other cookies.</p>
+
+  <h2>How long we keep things</h2>
+  <p>Until you delete them. We keep only your latest 500 activity events. Deleting your account on the Account page removes your contacts, events, profiles and login details.</p>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li>Download everything we hold about you, or delete it all, on the <a href="{{ url_for('account_page') }}" data-nav>Account</a> page.</li>
+    <li>Delete a single contact, profile or your activity history at any time inside the app.</li>
+    <li>You may ask us to correct or remove data using the contact above.</li>
+  </ul>
+
+  <h2>Safety and children</h2>
+  <p>We use HTTPS, hashed passwords and strict separation between people's data, but no online service is perfectly secure. If you are under 18, please use PULANOVA with a parent or guardian.</p>
+  <p><strong>PULANOVA is an experimental assistive tool.</strong> It is not a medical or certified safety device and cannot guarantee that it will detect danger, sounds or obstacles. Do not rely on it as your only aid.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the date above changes. Continuing to use PULANOVA means you accept the current version.</p>
+</section>
+{% endblock %}

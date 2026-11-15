@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Visual Support | PULANOVA AI{% endblock %}
+{% block page %}visual{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>VISUAL ACCESSIBILITY</p>
+  <h1 data-t>Visual support</h1>
+  <p data-t>Use the camera to hear what is around you, read text, find an object or identify a rupee note. Everything can be done by voice.</p>
+</section>
+
+<section class="two-column wide-left">
+  <article class="panel">
+    <h2 data-t>Camera</h2>
+    <div class="camera-frame">
+      <video id="camera-video" autoplay muted playsinline aria-label="Live camera preview" data-t-aria></video>
+      <div id="camera-placeholder" class="camera-placeholder" data-t>Camera preview will appear here</div>
+      <canvas id="overlay-canvas" class="overlay-canvas" aria-hidden="true"></canvas>
+    </div>
+    <div class="button-row">
+      <button class="button" id="start-camera" data-t>Start camera</button>
+      <button class="button button-secondary" id="stop-camera" disabled data-t>Stop camera</button>
+    </div>
+    <p id="model-status" class="status-text" role="status" data-t>Model not loaded.</p>
+    <div id="danger-level" class="danger-level level-safe" role="status" aria-live="polite"><span id="danger-label" data-t>Safe</span></div>
+    <div id="detection-result" class="result-box" aria-live="polite" data-t>No objects detected yet.</div>
+  </article>
+
+  <article class="panel">
+    <h2 data-t>Choose a tool</h2>
+    <div class="mode-tabs" role="group" aria-label="Vision tools" data-t-aria>
+      <button type="button" class="mode-btn" data-mode="identify" aria-pressed="false">🌍 <span data-t>Identify surroundings</span></button>
+      <button type="button" class="mode-btn" data-mode="text" aria-pressed="false">📖 <span data-t>Read text</span></button>
+      <button type="button" class="mode-btn" data-mode="find" aria-pressed="false">🎒 <span data-t>Find my object</span></button>
+      <button type="button" class="mode-btn" data-mode="currency" aria-pressed="false">₹ <span data-t>Indian currency</span></button>
+    </div>
+
+    <div class="mode-pane" data-pane="identify" hidden>
+      <p data-t>Describes objects with their position (left, ahead, right) and a rough distance. The danger level is a rough guide only.</p>
+    </div>
+
+    <div class="mode-pane" data-pane="text" hidden>
+      <p data-t>Hold printed text steadily in front of the camera, then press Read text.</p>
+      <div class="button-row">
+        <button class="button" id="read-text" data-t>Read text</button>
+        <button class="button button-secondary" id="stop-reading" data-t>Stop reading</button>
+      </div>
+      <label class="field-label" for="ocr-output" data-t>Text found</label>
+      <textarea id="ocr-output" rows="5" readonly></textarea>
+    </div>
+
+    <div class="mode-pane" data-pane="find" hidden>
+      <label class="field-label" for="find-target" data-t>What are you looking for?</label>
+      <select id="find-target"></select>
+      <div class="button-row">
+        <button class="button" id="start-find" data-t>Start finding</button>
+        <button class="button button-secondary" id="stop-find" data-t>Stop finding</button>
+      </div>
+      <p class="hint" data-t>Move the phone slowly. You will hear beeps that get faster as you get closer, plus spoken directions.</p>
+    </div>
+
+    <div class="mode-pane" data-pane="currency" hidden>
+      <p data-t>Hold one note flat so it fills the middle of the camera, in good light.</p>
+      <div class="button-row">
+        <button class="button" id="check-currency" data-t>Identify note</button>
+      </div>
+      <div id="currency-result" class="result-box big-result" aria-live="polite">—</div>
+      <p class="hint" data-t>Colour-based identification is a basic helper. Confirm important notes with another person or the RBI MANI app.</p>
+    </div>
+
+    <h3 data-t>Voice commands</h3>
+    <ul class="simple-list">
+      <li data-t>“Identify surroundings”</li>
+      <li data-t>“Read text” · “Stop reading”</li>
+      <li data-t>“Find my bag” · “Find my phone”</li>
+      <li data-t>“Check currency”</li>
+      <li data-t>“Emergency” · “Go back”</li>
+    </ul>
+  </article>
+</section>
+
+<section class="notice">
+  <span data-t>Distance and danger levels come from the size of objects in the camera image. They are not measurements and cannot guarantee obstacle avoidance.</span>
+</section>
+{% endblock %}

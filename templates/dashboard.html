@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | PULANOVA AI{% endblock %}
+{% block page %}dashboard{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>YOUR ACTIVITY</p>
+  <h1 data-t>Dashboard</h1>
+  <p data-t>View the latest events recorded by this installation of PULANOVA.</p>
+</section>
+<div class="stats-grid">
+  <article class="stat-card"><span data-t>Saved contacts</span><strong id="stat-contacts">—</strong></article>
+  <article class="stat-card"><span data-t>Total events</span><strong id="stat-events">—</strong></article>
+  <article class="stat-card"><span data-t>Sound alerts</span><strong id="stat-sounds">—</strong></article>
+  <article class="stat-card"><span data-t>Danger-labelled events</span><strong id="stat-danger">—</strong></article>
+</div>
+<section class="two-column">
+  <article class="panel"><h2 data-t>Events by type</h2><div id="type-bars" class="type-bars"></div></article>
+  <article class="panel"><h2 data-t>Active profile</h2><p id="dash-profile" class="big-result"></p></article>
+</section>
+<section class="panel">
+  <div class="section-heading-inline"><h2 data-t>Recent activity</h2>
+    <span class="button-row"><button class="button button-secondary" id="refresh-dashboard" data-t>Refresh</button>
+    <button class="button button-secondary" id="clear-events" data-t>Clear history</button></span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th data-t>Time</th><th data-t>Type</th><th data-t>Message</th><th data-t>Level</th></tr></thead>
+      <tbody id="event-table"><tr><td colspan="4" data-t>Loading events…</td></tr></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

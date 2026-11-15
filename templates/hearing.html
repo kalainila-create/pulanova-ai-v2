@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Hearing Support | PULANOVA AI{% endblock %}
+{% block page %}hearing{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>HEARING ACCESSIBILITY</p>
+  <h1 data-t>Hearing support</h1>
+  <p data-t>PULANOVA listens for important sounds and tells you through vibration, screen flash and pictures. It also turns speech into captions.</p>
+</section>
+
+<section class="two-column">
+  <article class="panel">
+    <h2 data-t>Sound identity</h2>
+    <p data-t>Recognises doorbells, horns, sirens, knocks, phone rings and more, then alerts you.</p>
+    <div class="button-row">
+      <button class="button" id="start-sound" data-t>Start sound alerts</button>
+      <button class="button button-secondary" id="stop-sound" disabled data-t>Stop alerts</button>
+    </div>
+    <p id="sound-engine" class="status-text" role="status"></p>
+    <div id="sound-indicator" class="sound-indicator" role="status" data-t>Sound monitoring is off.</div>
+    <div id="sound-cards" class="sound-cards" aria-live="polite"></div>
+    <label class="field-label" for="sensitivity" data-t>Sensitivity</label>
+    <input type="range" id="sensitivity" min="1" max="5" value="3">
+    <label class="toggle-row"><input type="checkbox" id="flash-toggle" checked> <span data-t>Flash screen on alert</span></label>
+    <label class="toggle-row"><input type="checkbox" id="vibrate-toggle" checked> <span data-t>Vibrate if supported</span></label>
+    <p id="haptic-status" class="status-text" role="status"></p>
+  </article>
+
+  <article class="panel">
+    <h2 data-t>Live speech captions</h2>
+    <p data-t>Speech recognition depends on your browser and language. Audio may be processed by the browser's speech service.</p>
+    <div class="button-row">
+      <button class="button" id="start-captions" data-t>Start captions</button>
+      <button class="button button-secondary" id="stop-captions" disabled data-t>Stop captions</button>
+    </div>
+    <div id="caption-output" class="caption-box" aria-live="polite" aria-atomic="false" data-t>Your captions will appear here.</div>
+    <p id="caption-status" class="status-text" role="status" data-t>Captions are stopped.</p>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="section-heading-inline">
+    <h2 data-t>Vibration language</h2>
+    <a class="button button-secondary" href="{{ url_for('profiles_page') }}" data-nav data-t>Customise in my profile</a>
+  </div>
+  <p data-t>Each sound has its own vibration pattern. These are illustrative signals, not validated safety signals.</p>
+  <div class="table-wrap">
+    <table class="pattern-table">
+      <thead><tr><th data-t>Sound</th><th data-t>Pattern</th><th data-t>Try it</th></tr></thead>
+      <tbody id="pattern-rows"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="notice">
+  <span data-t>Sound detection can miss sounds or make mistakes. Do not rely on it as your only warning for danger.</span>
+</section>
+{% endblock %}

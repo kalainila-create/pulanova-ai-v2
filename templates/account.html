@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Account | PULANOVA AI{% endblock %}
+{% block page %}account{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow" data-t>YOUR PRIVATE SPACE</p>
+  <h1 data-t>Account</h1>
+  <p data-t>Your contacts, events and profiles are private to you. Nobody else can see them.</p>
+</section>
+
+<section class="panel" aria-live="polite">
+  <h2 data-t>Status</h2>
+  <p id="acct-status" class="big-result"></p>
+  <p id="acct-note" class="hint"></p>
+  <div class="button-row"><button class="button button-secondary" id="logout-btn" hidden data-t>Sign out</button></div>
+</section>
+
+<section class="two-column" id="guest-forms" hidden>
+  <article class="panel">
+    <h2 data-t>Create an account</h2>
+    <p data-t>Keep your data safe and use it on other phones and computers. Everything you have saved so far comes with you.</p>
+    <form id="register-form" class="stack" autocomplete="on">
+      <label class="field-label" for="reg-name" data-t>Your name</label>
+      <input id="reg-name" maxlength="80" autocomplete="name">
+      <label class="field-label" for="reg-email" data-t>Email</label>
+      <input id="reg-email" type="email" maxlength="255" required autocomplete="email">
+      <label class="field-label" for="reg-password" data-t>Password (at least 8 characters)</label>
+      <input id="reg-password" type="password" minlength="8" maxlength="128" required autocomplete="new-password">
+      <button class="button" type="submit" data-t>Create account</button>
+      <p class="hint"><span data-t>By creating an account you agree to our</span> <a href="{{ url_for('privacy_page') }}" data-nav data-t>Privacy policy</a>.</p>
+    </form>
+  </article>
+  <article class="panel">
+    <h2 data-t>Sign in</h2>
+    <p data-t>Already have an account? Signing in replaces the guest data on this device with your saved data.</p>
+    <form id="login-form" class="stack" autocomplete="on">
+      <label class="field-label" for="log-email" data-t>Email</label>
+      <input id="log-email" type="email" maxlength="255" required autocomplete="email">
+      <label class="field-label" for="log-password" data-t>Password</label>
+      <input id="log-password" type="password" maxlength="128" required autocomplete="current-password">
+      <button class="button" type="submit" data-t>Sign in</button>
+    </form>
+    <details class="forgot">
+      <summary data-t>Forgot your password?</summary>
+      <form id="forgot-form" class="stack">
+        <label class="field-label" for="forgot-email" data-t>Email</label>
+        <input id="forgot-email" type="email" maxlength="255" required autocomplete="email">
+        <button class="button button-secondary" type="submit" data-t>Email me a reset link</button>
+      </form>
+    </details>
+  </article>
+</section>
+<p id="form-status" class="status-text" role="status"></p>
+
+<section class="two-column">
+  <article class="panel">
+    <h2 data-t>Your data</h2>
+    <p data-t>Download everything PULANOVA has saved for you as a file.</p>
+    <button class="button button-secondary" id="export-btn" data-t>Download my data</button>
+  </article>
+  <article class="panel">
+    <h2 data-t>Delete my data</h2>
+    <p data-t>This permanently deletes your contacts, events, profiles and account. It cannot be undone.</p>
+    <div id="delete-password-row" hidden>
+      <label class="field-label" for="del-password" data-t>Password</label>
+      <input id="del-password" type="password" maxlength="128" autocomplete="current-password">
+    </div>
+    <button class="button button-danger" id="delete-btn" data-t>Delete everything</button>
+  </article>
+</section>
+
+<section class="panel prose">
+  <h2 data-t>What PULANOVA stores</h2>
+  <ul>
+    <li data-t>The emergency contacts, profiles and activity events you create, linked to your private account.</li>
+    <li data-t>If you create an account: your email, name and a scrambled (hashed) password. The password itself is never stored.</li>
+    <li data-t>Camera pictures and microphone sound are analysed inside your browser and are not uploaded or saved by PULANOVA.</li>
+    <li data-t>Browser speech recognition (captions, voice commands) may send audio to your browser's speech service.</li>
+  </ul>
+  <p><a href="{{ url_for('privacy_page') }}" data-nav data-t>Read the full privacy policy</a></p>
+</section>
+{% endblock %}

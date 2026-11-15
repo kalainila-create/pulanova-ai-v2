@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14284b">
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+  <title>{% block title %}PULANOVA AI{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% set js = ['i18n', 'core', 'tactile', 'voice', 'sound', 'vision', 'bridge', 'emergency', 'pages'] %}
+  {% for name in js %}<script defer src="{{ url_for('static', filename='js/' ~ name ~ '.js') }}"></script>
+  {% endfor %}
+</head>
+<body>
+  <a class="skip-link" href="#main" data-t>Skip to main content</a>
+  <script id="pul-boot" type="application/json">{{ boot_profile|tojson }}</script>
+
+  {% set ep = request.endpoint %}
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="{{ url_for('home') }}" data-nav aria-label="PULANOVA AI home">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span class="brand-text">PULANOVA<small>புலனோவா · AI</small></span>
+      </a>
+      <nav aria-label="Main navigation" class="side-nav">
+        <a href="{{ url_for('home') }}" data-nav class="{{ 'active' if ep == 'home' }}"><span aria-hidden="true">🏠</span><span data-t>Home</span></a>
+        <a href="{{ url_for('visual') }}" data-nav class="{{ 'active' if ep == 'visual' }}"><span aria-hidden="true">👁️</span><span data-t>Visual</span></a>
+        <a href="{{ url_for('hearing') }}" data-nav class="{{ 'active' if ep == 'hearing' }}"><span aria-hidden="true">👂</span><span data-t>Hearing</span></a>
+        <a href="{{ url_for('bridge') }}" data-nav class="{{ 'active' if ep == 'bridge' }}"><span aria-hidden="true">💬</span><span data-t>Conversation</span></a>
+        <a href="{{ url_for('tactile') }}" data-nav class="{{ 'active' if ep == 'tactile' }}"><span aria-hidden="true">✋</span><span data-t>Tactile</span></a>
+        <a href="{{ url_for('emergency') }}" data-nav class="{{ 'active' if ep == 'emergency' }} nav-sos"><span aria-hidden="true">🆘</span><span data-t>Emergency</span></a>
+        <a href="{{ url_for('profiles_page') }}" data-nav class="{{ 'active' if ep == 'profiles_page' }}"><span aria-hidden="true">🧩</span><span data-t>Profiles</span></a>
+        <a href="{{ url_for('account_page') }}" data-nav class="{{ 'active' if ep == 'account_page' }}"><span aria-hidden="true">👤</span><span data-t>Account</span></a>
+        <a href="{{ url_for('dashboard') }}" data-nav class="{{ 'active' if ep == 'dashboard' }}"><span aria-hidden="true">📊</span><span data-t>Dashboard</span></a>
+        <a href="{{ url_for('about') }}" data-nav class="{{ 'active' if ep == 'about' }}"><span aria-hidden="true">ℹ️</span><span data-t>About</span></a>
+      </nav>
+      <p class="side-note" data-t>Experimental assistive tool. Not a certified safety device.</p>
+    </aside>
+
+    <div class="content-col">
+      <header class="topbar" role="banner">
+        <div class="topbar-left">
+          <span class="chip" id="profile-chip" title="Active accessibility profile">🧩 <span id="profile-name">…</span></span>
+          <a class="chip chip-link" id="account-chip" href="{{ url_for('account_page') }}" data-nav>👤 {% if account.is_guest %}<span data-t>Guest</span>{% else %}{{ account.display_name or account.email }}{% endif %}</a>
+        </div>
+        <div class="access-toolbar" role="toolbar" aria-label="Accessibility settings">
+          <button type="button" data-font="down" aria-label="Decrease text size">A−</button>
+          <button type="button" data-font="up" aria-label="Increase text size">A+</button>
+          <button type="button" id="contrast-toggle" aria-pressed="false" data-t>High contrast</button>
+          <label class="sr-only" for="language-select" data-t>Language</label>
+          <select id="language-select" aria-label="Display language">
+            <option value="en">English</option>
+            <option value="ta">தமிழ்</option>
+          </select>
+          <button type="button" id="global-voice-start" class="btn-voice" aria-label="Start voice navigation" data-t-aria>🎙️ <span data-t>Voice</span></button>
+          <button type="button" id="global-voice-stop" aria-label="Stop voice navigation" disabled data-t-aria>⏹ <span data-t>Stop voice</span></button>
+          <button type="button" id="repeat-guidance" aria-label="Repeat page guidance" data-t-aria>🔁 <span data-t>Repeat</span></button>
+        </div>
+      </header>
+
+      <main id="main" tabindex="-1" data-page="{% block page %}home{% endblock %}">
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="site-footer">
+        <p><span data-t>PULANOVA AI · An accessibility support project</span> · <a href="{{ url_for('privacy_page') }}" data-nav data-t>Privacy policy</a></p>
+        <p data-t>Assistive features are experimental and do not replace professional safety devices or emergency services.</p>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Braille / tactile mirror: every spoken message is also shown here and in a live region
+       so a screen reader can route it to a refreshable Braille display. -->
+  <div id="braille-bar" class="braille-bar" hidden>
+    <span class="braille-label" data-t>Braille</span>
+    <span id="braille-line" class="braille-line" aria-hidden="true"></span>
+  </div>
+  <div id="haptic-indicator" class="haptic-indicator" aria-hidden="true"><span></span><em id="haptic-label"></em></div>
+  <div id="flash-overlay" class="flash-overlay" aria-hidden="true"></div>
+
+  <div id="live-polite" class="sr-only" role="status" aria-live="polite"></div>
+  <div id="live-assertive" class="sr-only" role="alert" aria-live="assertive"></div>
+
+  <div id="voice-gate" class="voice-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title" hidden>
+    <div class="gate-card">
+      <h2 id="gate-title" data-t>Welcome to PULANOVA</h2>
+      <p data-t>Press Enter or tap the big button to start the voice assistant. Press Escape to skip.</p>
+      <button type="button" id="gate-start" class="button button-xl" data-t>Start voice assistant</button>
+      <button type="button" id="gate-skip" class="button button-secondary" data-t>Skip for now</button>
+    </div>
+  </div>
+</body>
+</html>
