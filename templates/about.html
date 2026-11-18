@@ -1,35 +1,198 @@
+
 {% extends "base.html" %}
-{% block title %}About | PULANOVA AI{% endblock %}
+{% block title %}About PULANOVA AI | Accessibility for Everyone{% endblock %}
 {% block page %}about{% endblock %}
+
 {% block content %}
-<section class="page-heading">
-  <p class="eyebrow" data-t>ABOUT THE PROJECT</p>
-  <h1>PULANOVA AI</h1>
-  <p data-t>An AI-powered multisensory accessibility and intelligent navigation system for people with visual and hearing difficulties.</p>
+
+<section class="pul-about-hero">
+  <p class="eyebrow" data-t>MORE THAN ACCESSIBILITY</p>
+  <h1 data-t>Technology should make the world easier to experience.</h1>
+  <p data-t>
+    PULANOVA brings different ways of interacting with the world
+    into one accessible digital experience.
+  </p>
 </section>
-<section class="panel prose">
-  <h2 data-t>Idea</h2>
-  <p data-t>Accessibility first, AI second. No person should depend on a communication method they cannot use, so PULANOVA offers voice, touch, vision and captions together.</p>
-  <h2 data-t>Features</h2>
-  <ul>
-    <li data-t>Voice-first navigation with spoken confirmations and screen-reader support</li>
-    <li data-t>Smart Haptic Alert System with a customisable vibration language</li>
-    <li data-t>Sound Identity System (doorbell, horn, siren, knock, phone, dog, baby, speech)</li>
-    <li data-t>Find My Object, text reading and Indian currency recognition</li>
-    <li data-t>Conversation Bridge for two-way talk with captions and spoken replies</li>
-    <li data-t>Tactile tools: haptic navigation, custom tactile messages, Morse and Braille output</li>
-    <li data-t>Tactile emergency assistance with location and a help card</li>
-    <li data-t>Custom accessibility profiles for people with more than one need</li>
-  </ul>
-  <h2 data-t>Tools and technology</h2>
-  <ul>
-    <li>Python, Flask, SQLite</li>
-    <li>HTML, CSS, JavaScript (no framework)</li>
-    <li>TensorFlow.js: COCO-SSD (objects), YAMNet (sounds)</li>
-    <li>Tesseract.js (text reading, English and Tamil)</li>
-    <li>Web Speech API, Web Audio API, Vibration API, Geolocation API</li>
-  </ul>
-  <h2 data-t>Limitations</h2>
-  <p data-t>Camera, microphone and location need localhost or HTTPS. iPhone Safari does not support web vibration, so PULANOVA shows a visual pulse and plays beeps instead. A phone cannot replace Braille or a certified safety device. Vibration patterns and AI detection must be tested with users and are not guaranteed warnings.</p>
+
+<section class="pul-about-intro">
+  <div>
+    <p class="eyebrow" data-t>OUR PURPOSE</p>
+    <h2 data-t>Designed for different ways of experiencing life.</h2>
+    <p data-t>
+      Everyone experiences and interacts with the world differently.
+      Some people depend on visual information, some use sound,
+      while others communicate through touch, speech or captions.
+    </p>
+    <p data-t>
+      PULANOVA brings these different interaction methods together
+      to help people explore information, communicate and access
+      everyday assistance.
+    </p>
+  </div>
+
+  <div class="pul-about-highlight">
+    <span aria-hidden="true">∞</span>
+    <h3 data-t>One platform. Different possibilities.</h3>
+    <p data-t>
+      Technology that adapts to different people and their needs.
+    </p>
+  </div>
 </section>
+
+<section class="pul-about-section">
+  <p class="eyebrow" data-t>EXPLORE PULANOVA</p>
+  <h2 data-t>Tools designed around everyday experiences.</h2>
+  <p class="pul-about-description" data-t>
+    Discover different ways to interact with information and technology.
+  </p>
+
+  <div class="pul-about-grid">
+
+    <article class="pul-about-card">
+      <span class="pul-about-icon" aria-hidden="true">👁️</span>
+      <h3 data-t>Visual Assistance</h3>
+      <p data-t>
+        Explore object identification, text reading, object finding
+        and Indian currency recognition.
+      </p>
+      <a href="{{ url_for('visual') }}" data-nav data-t>
+        Explore visual assistance →
+      </a>
+    </article>
+
+    <article class="pul-about-card">
+      <span class="pul-about-icon" aria-hidden="true">👂</span>
+      <h3 data-t>Sound Awareness</h3>
+      <p data-t>
+        Explore sound recognition, custom sound learning
+        and visual or vibration-based alerts.
+      </p>
+      <a href="{{ url_for('hearing') }}" data-nav data-t>
+        Explore sound assistance →
+      </a>
+    </article>
+
+    <article class="pul-about-card">
+      <span class="pul-about-icon" aria-hidden="true">💬</span>
+      <h3 data-t>Communication</h3>
+      <p data-t>
+        Use speech recognition, live captions, typed messages
+        and spoken responses.
+      </p>
+      <a href="{{ url_for('bridge') }}" data-nav data-t>
+        Explore communication →
+      </a>
+    </article>
+
+    <article class="pul-about-card">
+      <span class="pul-about-icon" aria-hidden="true">✋</span>
+      <h3 data-t>Tactile Interaction</h3>
+      <p data-t>
+        Explore vibration patterns, tactile messages,
+        Morse code and Braille output.
+      </p>
+      <a href="{{ url_for('tactile') }}" data-nav data-t>
+        Explore tactile tools →
+      </a>
+    </article>
+
+    <article class="pul-about-card">
+      <span class="pul-about-icon" aria-hidden="true">🆘</span>
+      <h3 data-t>Emergency Assistance</h3>
+      <p data-t>
+        Access emergency tools, saved contacts,
+        location support and assistance information.
+      </p>
+      <a href="{{ url_for('emergency') }}" data-nav data-t>
+        Explore emergency support →
+      </a>
+    </article>
+
+    <article class="pul-about-card">
+      <span class="pul-about-icon" aria-hidden="true">🧩</span>
+      <h3 data-t>Personalised Experience</h3>
+      <p data-t>
+        Explore accessibility profiles and customise
+        supported interaction preferences.
+      </p>
+      <a href="{{ url_for('profiles_page') }}" data-nav data-t>
+        Personalise your experience →
+      </a>
+    </article>
+
+  </div>
+</section>
+
+<section class="pul-about-values">
+  <p class="eyebrow" data-t>WHAT GUIDES US</p>
+  <h2 data-t>Accessibility begins with understanding people.</h2>
+
+  <div class="pul-values-grid">
+    <div>
+      <h3 data-t>Inclusion</h3>
+      <p data-t>Different accessibility needs deserve equal consideration.</p>
+    </div>
+
+    <div>
+      <h3 data-t>Independence</h3>
+      <p data-t>Technology should support everyday independence.</p>
+    </div>
+
+    <div>
+      <h3 data-t>Choice</h3>
+      <p data-t>People should have different ways to interact.</p>
+    </div>
+
+    <div>
+      <h3 data-t>Transparency</h3>
+      <p data-t>Users deserve clear information about technology and its limitations.</p>
+    </div>
+  </div>
+</section>
+
+<section class="pul-about-tech">
+  <details>
+    <summary data-t>Technical information</summary>
+
+    <div class="pul-about-tech-content">
+      <h3 data-t>Application development</h3>
+      <ul>
+        <li>Python and Flask</li>
+        <li>HTML, CSS and JavaScript</li>
+        <li>SQLAlchemy, SQLite and PostgreSQL</li>
+      </ul>
+
+      <h3 data-t>Artificial intelligence and browser technologies</h3>
+      <ul>
+        <li>TensorFlow.js and COCO-SSD for object detection</li>
+        <li>YAMNet for sound classification</li>
+        <li>Tesseract.js for English and Tamil text recognition</li>
+        <li>Web Speech API and Web Audio API</li>
+        <li>Vibration API and Geolocation API</li>
+      </ul>
+
+      <h3 data-t>Hosting and development</h3>
+      <ul>
+        <li>GitHub for source-code management</li>
+        <li>Render for application hosting</li>
+        <li>Neon PostgreSQL for hosted database storage</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section class="pul-about-notice">
+  <h3 data-t>Using PULANOVA responsibly</h3>
+  <p data-t>
+    Some features are experimental. AI recognition may be inaccurate
+    or miss important events. Browser and device support may vary.
+    PULANOVA does not replace certified assistive devices,
+    professional guidance, mobility aids or emergency services.
+  </p>
+
+  <a href="{{ url_for('privacy_page') }}" data-nav data-t>
+    Read our privacy policy →
+  </a>
+</section>
+
 {% endblock %}
