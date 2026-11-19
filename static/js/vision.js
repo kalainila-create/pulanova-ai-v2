@@ -310,6 +310,12 @@ async function ocrDenomination(video) {
     for (const angle of [0, 90, 270]) {
       const canvas = frameCanvas(video, angle);
       const { data } = await worker.recognize(canvas);
+      console.log("========== CURRENCY OCR DEBUG ==========");
+      console.log("Camera orientation:", angle);
+      console.log("OCR recognised text:", data.text);
+      console.log("OCR confidence:", data.confidence);
+      console.log("Detected words:", data.words);
+      console.log("=========================================");
 
       const found = new Set();
 
