@@ -264,10 +264,11 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
      (2) the note colour is only a cross-check, because room light and a coloured wall change what the camera sees. */
   const VALID_NOTES = new Set([10, 20, 50, 100, 200, 500, 2000]);
   
+
 function frameCanvas(video, angle) {
-  // Crop the central area to reduce background interference.
   const cropW = Math.floor(video.videoWidth * 0.85);
   const cropH = Math.floor(video.videoHeight * 0.75);
+
   const cropX = Math.floor((video.videoWidth - cropW) / 2);
   const cropY = Math.floor((video.videoHeight - cropH) / 2);
 
@@ -278,7 +279,9 @@ function frameCanvas(video, angle) {
   canvas.height = rotated ? cropW * 2 : cropH * 2;
 
   const ctx = canvas.getContext("2d");
-  ctx.filter = "grayscale(1) contrast(1.6)";
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.rotate(angle * Math.PI / 180);
@@ -289,9 +292,29 @@ function frameCanvas(video, angle) {
     -cropW, -cropH, cropW * 2, cropH * 2
   );
 
-  ctx.filter = "none";
+  // Improve contrast after drawing.
+  const image = ctx.getImageData(
+    0, 0, canvas.width, canvas.height
+  );
+
+  for (let i = 0; i < image.data.length; i += 4) {
+    const gray =
+      0.299 * image.data[i] +
+      0.587 * image.data[i + 1] +
+      0.114 * image.data[i + 2];
+
+    const enhanced = gray > 140 ? 255 : 0;
+
+    image.data[i] = enhanced;
+    image.data[i + 1] = enhanced;
+    image.data[i + 2] = enhanced;
+  }
+
+  ctx.putImageData(image, 0, 0);
+
   return canvas;
 }
+
 
   
 async function ocrDenomination(video) {
