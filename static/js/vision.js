@@ -263,251 +263,82 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
      Two checks: (1) OCR reads the large printed number (10/20/50/100/200/500/2000), which is the reliable signal;
      (2) the note colour is only a cross-check, because room light and a coloured wall change what the camera sees. */
   const VALID_NOTES = new Set([10, 20, 50, 100, 200, 500, 2000]);
-  
-
-function frameCanvas(video, angle) {
-  const cropW = Math.floor(video.videoWidth * 0.85);
-  const cropH = Math.floor(video.videoHeight * 0.75);
-
-  const cropX = Math.floor((video.videoWidth - cropW) / 2);
-  const cropY = Math.floor((video.videoHeight - cropH) / 2);
-
-  const rotated = angle === 90 || angle === 270;
-  const canvas = document.createElement("canvas");
-
-  canvas.width = rotated ? cropH * 2 : cropW * 2;
-  canvas.height = rotated ? cropW * 2 : cropH * 2;
-
-  const ctx = canvas.getContext("2d");
-
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate(angle * Math.PI / 180);
-
-  ctx.drawImage(
-    video,
-    cropX, cropY, cropW, cropH,
-    -cropW, -cropH, cropW * 2, cropH * 2
-  );
-
-  // Improve contrast after drawing.
-  const image = ctx.getImageData(
-    0, 0, canvas.width, canvas.height
-  );
-
-  for (let i = 0; i < image.data.length; i += 4) {
-    const gray =
-      0.299 * image.data[i] +
-      0.587 * image.data[i + 1] +
-      0.114 * image.data[i + 2];
-
-    const enhanced = gray > 140 ? 255 : 0;
-
-    image.data[i] = enhanced;
-    image.data[i + 1] = enhanced;
-    image.data[i + 2] = enhanced;
+  function frameCanvas(video, angle) {
+    const c = document.createElement("canvas"), turned = angle === 90 || angle === 270;
+    c.width = turned ? video.videoHeight : video.videoWidth; c.height = turned ? video.videoWidth : video.videoHeight;
+    const g = c.getContext("2d");
+    g.filter = "grayscale(1) contrast(1.5)";
+    g.translate(c.width / 2, c.height / 2); g.rotate(angle * Math.PI / 180);
+    g.drawImage(video, -video.videoWidth / 2, -video.videoHeight / 2);
+    return c;
   }
-
-  ctx.putImageData(image, 0, 0);
-
-  return canvas;
-}
-
-
-  
-async function ocrDenomination(video) {
-  await PUL.loadScript(OCR_URL);
-
-  const worker = await Tesseract.createWorker("eng");
-  const votes = {};
-
-  try {
-    await worker.setParameters({
-      tessedit_char_whitelist: "0123456789",
-      tessedit_pageseg_mode: "11"
-    });
-
-    // Read the note in three orientations.
-    for (const angle of [0, 90, 270]) {
-      const canvas = frameCanvas(video, angle);
-      const { data } = await worker.recognize(canvas);
-      console.log("========== CURRENCY OCR DEBUG ==========");
-      console.log("Camera orientation:", angle);
-      console.log("OCR recognised text:", data.text);
-      console.log("OCR confidence:", data.confidence);
-      console.log("Detected words:", data.words);
-      console.log("=========================================");
-
-      const found = new Set();
-
-      (data.text.match(/\d+/g) || []).forEach(token => {
-        const number = Number(token);
-
-        if (
-          VALID_NOTES.has(number) &&
-          String(number) === token
-        ) {
-          found.add(number);
-        }
-      });
-
-      // Accept only one denomination per orientation.
-      if (found.size === 1) {
-        const value = [...found][0];
-        votes[value] = (votes[value] || 0) + 1;
+  async function ocrDenomination(video) {
+    await PUL.loadScript(OCR_URL);
+    const worker = await Tesseract.createWorker("eng");
+    const counts = {};
+    try {
+      await worker.setParameters({ tessedit_char_whitelist: "0123456789", tessedit_pageseg_mode: Tesseract.PSM?.SPARSE_TEXT ?? "11" });
+      for (const angle of [0, 90, 270]) {          // notes are often held sideways; the side numeral is vertical
+        const { data } = await worker.recognize(frameCanvas(video, angle));
+        (data.text.match(/\d+/g) || []).forEach(tok => { const n = Number(tok); if (VALID_NOTES.has(n) && String(n) === tok) counts[n] = (counts[n] || 0) + 1; });
       }
-    }
-
-  } finally {
-    await worker.terminate();
+    } finally { await worker.terminate(); }
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    return top ? { value: Number(top[0]), hits: top[1], total: Object.values(counts).reduce((a, b) => a + b, 0) } : null;
   }
-
-  const results = Object.entries(votes)
-    .sort((a, b) => b[1] - a[1]);
-
-  if (!results.length) return null;
-
-  const [value, hits] = results[0];
-  const secondHits = Number(results[1]?.[1] || 0);
-
-  // Require agreement in at least two orientations.
-  if (Number(hits) < 2 || Number(hits) <= secondHits) {
-    return null;
-  }
-
-  return {
-    value: Number(value),
-    hits: Number(hits),
-    total: Object.values(votes).reduce((a, b) => a + b, 0)
-  };
-}
-
   const isSkin = (r, g, b) => r > 95 && g > 40 && b > 20 && r > g && r > b && (r - g) > 15 && (Math.max(r, g, b) - Math.min(r, g, b)) > 15;
 
-  
-async function checkCurrency() {
-  if (!(await startCamera())) return;
-
-  setMode("currency");
-
-  const out = $("#currency-result");
-  const video = v();
-
-  narrate(
-    PUL.t("Checking the note. Hold it flat in the middle of the camera."),
-    { interrupt: true }
-  );
-
-  if (out) {
-    out.textContent = PUL.t("Checking currency...");
-  }
-
-  try {
-    // Wait for camera image.
-    if (video.readyState < 2) {
-      await new Promise(resolve => {
-        video.addEventListener("loadeddata", resolve, {
-          once: true
-        });
-      });
-    }
-
-    narrate(
-      PUL.t("Reading the printed number..."),
-      { interrupt: true }
-    );
-
-    // Read denomination using OCR.
-    const result = await ocrDenomination(video);
-
-    // Never guess denomination from colour.
-    if (!result) {
-      if (out) {
-        out.textContent = PUL.t(
-          "Unable to identify the note."
-        );
+  async function checkCurrency() {
+    if (!(await startCamera())) return;
+    setMode("currency");
+    const out = $("#currency-result"), video = v();
+    narrate(PUL.t("Checking the note. Hold it flat in the middle of the camera."), { interrupt: true });
+    const tiny = document.createElement("canvas"); tiny.width = tiny.height = 40;
+    const g = tiny.getContext("2d", { willReadFrequently: true });
+    const votes = {}; let n = 0, margins = 0;
+    for (let i = 0; i < 10 && stream; i++) {
+      await PUL.wait(250);
+      if (video.readyState < 2) continue;
+      const sw = video.videoWidth * 0.4, sh = video.videoHeight * 0.3;
+      g.drawImage(video, (video.videoWidth - sw) / 2, (video.videoHeight - sh) / 2, sw, sh, 0, 0, 40, 40);
+      const px = g.getImageData(0, 0, 40, 40).data, R = [], G = [], B = [];
+      for (let k = 0; k < px.length; k += 4) {
+        const br = (px[k] + px[k + 1] + px[k + 2]) / 3;
+        if (br > 35 && br < 245 && !isSkin(px[k], px[k + 1], px[k + 2])) { R.push(px[k]); G.push(px[k + 1]); B.push(px[k + 2]); }
       }
-
-      narrate(
-        PUL.t(
-          "I could not confidently read the printed number. Please hold the note flat in good light and try again."
-        ),
-        {
-          level: "caution",
-          interrupt: true
-        }
-      );
-
-      return;
+      if (R.length < 200) continue;
+      const med = a => a.sort((x, y) => x - y)[a.length >> 1];
+      const r = classifyNote(med(R), med(G), med(B));
+      votes[r.value] = (votes[r.value] || 0) + 1; margins += r.margin; n++;
     }
+    const best = Object.entries(votes).sort((a, b) => b[1] - a[1])[0];
+    const colour = best && n >= 6 && best[1] / n >= 0.7 && margins / n >= 0.15 ? Number(best[0]) : null;   // strict
 
-    const value = result.value;
+    narrate(PUL.t("Reading the number on the note…"), { interrupt: true });
+    let printed = null, strong = false;
+    try {
+      const r = await ocrDenomination(video);
+      if (r) { printed = r.value; strong = r.hits >= 2 && r.hits === r.total; }   // read at least twice, never contradicted
+    } catch (e) { console.warn(e); }
 
-    let message = `${value} ${PUL.t("rupees")}`;
+    let value = null, basis = "", level = "info";
+    if (printed && (!colour || colour === printed || strong)) { value = printed; basis = PUL.t("by the printed number"); }
+    else if (printed && colour && colour !== printed) {
+      value = printed; level = "caution";
+      basis = `${PUL.t("by the printed number")}. ${PUL.t("The colour suggests")} ${colour}. ${PUL.t("Please confirm with another person.")}`;
+    } else if (colour) { value = colour; level = "caution"; basis = `${PUL.t("by colour only")}. ${PUL.t("Please confirm with another person.")}`; }
 
-    if (value === 2000) {
-      message += `. ${PUL.t(
-        "This note was withdrawn from circulation in 2023 but remains legal tender."
-      )}`;
+    if (value === 2000) basis += `. ${PUL.t("This note was withdrawn from circulation in 2023 but is still legal tender. Banks and RBI offices can exchange it.")}`;
+    if (!value) {
+      if (out) out.textContent = "?";
+      narrate(PUL.t("I am not sure. Hold the note flat in good light."), { level: "caution" }); return;
     }
-
-    if (out) {
-      out.textContent = `₹${value} - ${message}`;
-    }
-
-    // Announce the recognised denomination.
-    narrate(message, {
-      level: "info",
-      short: `₹${value}`,
-      interrupt: true
-    });
-
-    // Different vibration patterns.
-    const pulses = {
-      10: 1,
-      20: 2,
-      50: 3,
-      100: 4,
-      200: 5,
-      500: 6,
-      2000: 7
-    }[value];
-
-    PUL.haptic.play(
-      Array.from(
-        { length: pulses * 2 - 1 },
-        (_, k) => k % 2 ? 110 : 160
-      ),
-      { label: `₹${value}` }
-    );
-
-    PUL.saveEvent(
-      "currency",
-      `Note denomination read as ${value} rupees.`,
-      "info"
-    );
-
-  } catch (error) {
-    console.error("Currency recognition error:", error);
-
-    if (out) {
-      out.textContent = PUL.t(
-        "Currency recognition failed."
-      );
-    }
-
-    narrate(
-      PUL.t("Currency recognition failed. Please try again."),
-      {
-        level: "caution",
-        interrupt: true
-      }
-    );
+    if (out) out.textContent = `₹${value} · ${value} ${PUL.t("rupees")} — ${basis}`;
+    narrate(`${value} ${PUL.t("rupees")}, ${basis}`, { level, short: `₹${value}` });
+    const pulses = { 10: 1, 20: 2, 50: 3, 100: 4, 200: 5, 500: 6, 2000: 7 }[value] || 1;   // buzzes = denomination rank
+    PUL.haptic.play(Array.from({ length: pulses * 2 - 1 }, (_, k) => (k % 2 ? 110 : 160)), { label: `₹${value}` });
+    PUL.saveEvent("currency", `Note identified as ${value} rupees (${printed ? "printed number" : "colour only"}).`, level === "info" ? "info" : "caution");
   }
-}
-
 
   /* ---- page wiring ---- */
   function setMode(m) {
