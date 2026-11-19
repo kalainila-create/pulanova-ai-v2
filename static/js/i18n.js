@@ -178,3 +178,25 @@ Object.assign(window.PUL_TA, {
   "If that email has an account, we have sent a reset link. It works for 30 minutes.":"அந்த மின்னஞ்சலுக்குக் கணக்கு இருந்தால் மீட்டமைப்பு இணைப்பை அனுப்பியுள்ளோம். இது 30 நிமிடங்கள் செயல்படும்.",
   "This reset link is invalid or has expired. Request a new one.":"இந்த மீட்டமைப்பு இணைப்பு செல்லாதது அல்லது காலாவதியானது. புதியதைக் கோருங்கள்."
 });
+Object.assign(window.PUL_TA, {
+  "Welcome to PULANOVA. How can it help you?":"PULANOVA-வுக்கு வரவேற்கிறோம். இது உங்களுக்கு எப்படி உதவ வேண்டும்?",
+  "Press 1, 2, 3 or 4, or press Enter on a button. You can change this later in Profiles.":"1, 2, 3 அல்லது 4 அழுத்தவும், அல்லது பொத்தானில் Enter அழுத்தவும். பின்னர் சுயவிவரங்களில் மாற்றலாம்.",
+  "1. I cannot see well. Use voice.":"1. எனக்குப் பார்வை சரியில்லை. குரலைப் பயன்படுத்து.",
+  "2. I cannot hear well. Use captions and vibration.":"2. எனக்குக் கேட்பது சரியில்லை. வசனங்களையும் அதிர்வையும் பயன்படுத்து.",
+  "3. Both. Use touch and Braille.":"3. இரண்டும். தொடு உணர்வையும் பிரெய்லையும் பயன்படுத்து.",
+  "4. Neither. Standard settings.":"4. இரண்டுமில்லை. வழக்கமான அமைப்புகள்."
+});
+Object.assign(window.PUL_TA, {
+  "Teach a sound":"ஒலியைக் கற்றுக்கொடு","Teach PULANOVA a sound from your home, like a pressure-cooker whistle or your own doorbell. Make the same sound three times. Only a numeric fingerprint is saved, never the recording.":"உங்கள் வீட்டின் ஒலியை (குக்கர் விசில், உங்கள் கதவு மணி போன்றவை) PULANOVA-வுக்குக் கற்றுக்கொடுங்கள். அதே ஒலியை மூன்று முறை எழுப்புங்கள். எண் வடிவ கைரேகை மட்டுமே சேமிக்கப்படும்; பதிவு ஒருபோதும் சேமிக்கப்படாது.",
+  "Sound name":"ஒலியின் பெயர்","Picture":"படம்","Record sample":"மாதிரியைப் பதிவு செய்","Start over":"மீண்டும் தொடங்கு","My taught sounds":"நான் கற்றுக்கொடுத்த ஒலிகள்","No taught sounds yet.":"இதுவரை கற்றுக்கொடுத்த ஒலிகள் இல்லை.","Match strictness":"பொருத்தத்தின் கடுமை",
+  "Type a name for the sound first.":"முதலில் ஒலிக்கு ஒரு பெயர் தட்டச்சு செய்யுங்கள்.","Get ready. Make the sound after the beep.":"தயாராகுங்கள். பீப் ஒலிக்குப் பிறகு ஒலியை எழுப்புங்கள்.","Recording…":"பதிவு செய்கிறது…",
+  "I could not hear the sound. Move closer and try again.":"ஒலி கேட்கவில்லை. அருகில் வந்து மீண்டும் முயலுங்கள்.","Sample saved. Press the button for the next one.":"மாதிரி சேமிக்கப்பட்டது. அடுத்ததற்குப் பொத்தானை அழுத்துங்கள்.",
+  "The three samples sounded too different. Try again, making the same sound each time.":"மூன்று மாதிரிகளும் மிகவும் வேறுபட்டன. ஒவ்வொரு முறையும் ஒரே ஒலியை எழுப்பி மீண்டும் முயலுங்கள்.",
+  "Saved. Sound alerts are on. Make the sound to test it.":"சேமிக்கப்பட்டது. ஒலி எச்சரிக்கைகள் இயங்குகின்றன. சோதிக்க ஒலியை எழுப்புங்கள்.","Samples cleared.":"மாதிரிகள் அழிக்கப்பட்டன.",
+  "Teach a Sound needs the sound model, which could not load. Check your internet and try again.":"ஒலியைக் கற்றுக்கொடுக்க ஒலி மாதிரி தேவை; அதை ஏற்ற இயலவில்லை. இணையத்தைச் சரிபார்த்து மீண்டும் முயலுங்கள்.",
+  "The sound model gave no fingerprint. Try again.":"ஒலி மாதிரி கைரேகை தரவில்லை. மீண்டும் முயலுங்கள்.","Opening Teach a Sound.":"ஒலியைக் கற்றுக்கொடுக்கும் பக்கத்தைத் திறக்கிறேன்."
+});
+Object.assign(window.PUL_TA, {
+  "This note was withdrawn from circulation in 2023 but is still legal tender. Banks and RBI offices can exchange it.":"இந்த நோட்டு 2023-இல் புழக்கத்திலிருந்து திரும்பப் பெறப்பட்டது, ஆனாலும் செல்லுபடியாகும். வங்கிகளிலும் RBI அலுவலகங்களிலும் மாற்றிக்கொள்ளலாம்.",
+  "PULANOVA reads the printed number first. Colour is only a cross-check, because older-design notes have different colours. Confirm important notes with another person or the RBI MANI app.":"PULANOVA முதலில் அச்சிட்ட எண்ணைப் படிக்கும். பழைய வடிவ நோட்டுகளுக்கு வேறு நிறங்கள் இருப்பதால் நிறம் ஒரு சரிபார்ப்பு மட்டுமே. முக்கிய நோட்டுகளை மற்றவரிடம் அல்லது RBI MANI செயலியில் உறுதிசெய்யவும்."
+});

@@ -245,4 +245,45 @@
     },
     destroy() {},
   };
+
+  /* ---------- first-run setup: works without sight (Enter on the first button, or keys 1-4) ---------- */
+  const NAMES = { visual: "Visually challenged", hearing: "Hearing impaired", deafblind: "Deafblind", everyday: "Everyday (default)" };
+  PUL.setup = {
+    show() {
+      const url = new URL(location.href);
+      if (url.searchParams.get("setup") === "done") {                 // arrived from a /start/<mode> link
+        PUL.store.set("pulanova-setup", "1"); url.searchParams.delete("setup");
+        history.replaceState({}, "", url.pathname + url.search);
+        return;
+      }
+      if (PUL.store.get("pulanova-setup") || PUL.profile?.name !== NAMES.everyday) return;
+      const gate = $("#setup-gate"); if (!gate) return;
+      if (!PUL.store.get("pulanova-language") && (navigator.language || "").toLowerCase().startsWith("ta")) PUL.setLanguage("ta", { remember: false });
+      gate.hidden = false; $("#setup-first")?.focus();
+      PUL.speak(`${PUL.t("Welcome to PULANOVA. How can it help you?")} ${PUL.t("Press 1, 2, 3 or 4, or press Enter on a button. You can change this later in Profiles.")}`, { force: true });
+      const buttons = $$("[data-setup]", gate);
+      gate.onkeydown = e => {
+        if (e.key >= "1" && e.key <= "4") { e.preventDefault(); this.choose(buttons[Number(e.key) - 1].dataset.setup); }
+        else if (e.key === "Escape") { PUL.store.set("pulanova-setup", "1"); gate.hidden = true; $("#main")?.focus(); }
+      };
+      buttons.forEach(b => { b.onclick = () => this.choose(b.dataset.setup); });
+    },
+    async choose(mode) {
+      const gate = $("#setup-gate");
+      try {
+        const list = await api("/api/profiles");
+        const hit = list.find(p => p.name === NAMES[mode]);
+        if (hit) {
+          const profile = await api(`/api/profiles/${hit.id}/activate`, { method: "POST" });
+          PUL.applyProfile(profile, { resetLocal: true });
+        }
+      } catch (e) { PUL.say(e.message, { level: "danger" }); }
+      PUL.store.set("pulanova-setup", "1");
+      gate.hidden = true; $("#main")?.focus();
+      if (mode === "visual") {                                          // this key press/tap is the gesture the browser needs
+        PUL.voice?.start({ quiet: true });
+        PUL.say(`${PUL.t("Voice assistant ready.")} ${PUL.pageGuidance()}`);
+      } else PUL.announce(PUL.t(NAMES[mode]));
+    },
+  };
 })();

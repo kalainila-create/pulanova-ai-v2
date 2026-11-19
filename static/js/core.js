@@ -237,6 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (savedLang && $("#language-select")) $("#language-select").value = savedLang;
   PUL.applyProfile(profile);
   PUL.mountPage();
+  PUL.setup?.show();
   PUL.voice?.boot?.();
   if (PUL.settings().autoAnnounce) setTimeout(() => PUL.announcePage(), 600);
 });

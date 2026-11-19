@@ -11,7 +11,7 @@ from pathlib import Path
 
 from datetime import timedelta
 
-from sqlalchemy import (Column, ForeignKey, Index, Integer, MetaData, String, Table,
+from sqlalchemy import (Column, Float, ForeignKey, Index, Integer, MetaData, String, Table,
                         Text, UniqueConstraint, create_engine, event, inspect, text)
 
 # ---------------------------------------------------------------------------
@@ -105,6 +105,19 @@ events = Table(
     Column("severity", String(20), nullable=False, default="info"),
     Column("created_at", String(19), nullable=False),
     Index("ix_events_user", "user_id"),
+)
+custom_sounds = Table(
+    "custom_sounds", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("name", String(40), nullable=False),
+    Column("emoji", String(8), nullable=False, default="🔊"),
+    Column("pattern", Text, nullable=False),
+    Column("threshold", Float, nullable=False, default=0.8),
+    Column("embeddings", Text, nullable=False),          # numeric sound fingerprints, never audio
+    Column("created_at", String(19), nullable=False),
+    UniqueConstraint("user_id", "name", name="uq_custom_user_name"),
+    Index("ix_custom_user", "user_id"),
 )
 profiles = Table(
     "profiles", metadata,

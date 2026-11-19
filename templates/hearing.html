@@ -38,6 +38,26 @@
   </article>
 </section>
 
+<section class="panel" id="teach-panel">
+  <h2 data-t>Teach a sound</h2>
+  <p data-t>Teach PULANOVA a sound from your home, like a pressure-cooker whistle or your own doorbell. Make the same sound three times. Only a numeric fingerprint is saved, never the recording.</p>
+  <div class="teach-grid">
+    <div><label class="field-label" for="teach-name" data-t>Sound name</label><input id="teach-name" maxlength="40" placeholder="Pressure cooker whistle" data-t-ph></div>
+    <div><label class="field-label" for="teach-emoji" data-t>Picture</label>
+      <select id="teach-emoji"><option>🔊</option><option>🍲</option><option>🔔</option><option>🚪</option><option>📱</option><option>⏰</option><option>🐈</option><option>🚂</option><option>💧</option><option>🍳</option></select></div>
+    <div><label class="field-label" for="teach-pattern" data-t>Vibration</label>
+      <select id="teach-pattern"><option value="double" data-t>Two short pulses</option><option value="single" data-t>One short pulse</option><option value="triple" data-t>Three short pulses</option><option value="long" data-t>One long pulse</option><option value="urgent" data-t>Urgent repeated</option></select></div>
+  </div>
+  <p id="teach-dots" class="teach-dots" aria-hidden="true"></p>
+  <div class="button-row">
+    <button class="button" id="teach-record" data-t>Record sample</button>
+    <button class="button button-secondary" id="teach-reset" data-t>Start over</button>
+  </div>
+  <p id="teach-status" class="status-text" role="status"></p>
+  <h3 data-t>My taught sounds</h3>
+  <ul id="custom-list" class="contact-list"></ul>
+</section>
+
 <section class="panel">
   <div class="section-heading-inline">
     <h2 data-t>Vibration language</h2>

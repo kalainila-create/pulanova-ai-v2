@@ -77,13 +77,29 @@ function basicClassify(frames) {
   if (recent.some(f => f.rms > 0.14) && prev.length && mean(prev.map(p => p.rms)) < 0.04) return "loud";
   return null;
 }
-window.PUL_soundTest = { categorize, parseClassMap, basicClassify };   // exposed for tests
+/* ---- Teach a Sound: nearest-fingerprint matching on YAMNet embeddings (1024 numbers per window) ---- */
+const EMB_DIM = 1024;
+function l2norm(v) { let s = 0; for (const x of v) s += x * x; s = Math.sqrt(s) || 1; return Float32Array.from(v, x => x / s); }
+function cosine(a, b) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }       // inputs are unit length
+function bestSimilarity(vec, samples) { let m = -1; for (const s of samples) { const c = cosine(vec, s); if (c > m) m = c; } return m; }
+/* clips: one array of unit vectors per recorded sample. raw = how well the weakest clip matches the others. */
+function calibrate(clips) {
+  let raw = 1;
+  clips.forEach((clip, i) => {
+    const others = clips.filter((_, j) => j !== i).flat();
+    const peak = Math.max(...clip.map(v => bestSimilarity(v, others)));
+    raw = Math.min(raw, peak);
+  });
+  return { raw, threshold: Math.max(0.70, Math.min(0.95, raw - 0.04)) };
+}
+window.PUL_soundTest = { categorize, parseClassMap, basicClassify, l2norm, cosine, bestSimilarity, calibrate };   // exposed for tests
 
 (() => {
   let stream = null, ctx = null, processor = null, mute = null, analyser = null;
   let model = null, classNames = null, engine = null;
   let raw = [], rawRate = 16000, timer = null, busy = false, running = false, starting = false;
   const streak = {}, lastFire = {}, frames = [];
+  let customSounds = [], teach = { clips: [], busy: false };
   let uiCleanup = [];
 
   const sensitivity = () => Number($("#sensitivity")?.value || PUL.store.get("pulanova-sensitivity", 3));
@@ -110,17 +126,26 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify };   // expose
   async function classifyYamnet() {
     const need = Math.ceil(rawRate * 0.975);
     if (raw.length < need) return;
-    const window16 = resample(raw.slice(-need), rawRate, 16000, 15600);
+    return classifyWindow(resample(raw.slice(-need), rawRate, 16000, 15600));
+  }
+  async function classifyWindow(window16) {
     const rms = Math.sqrt(window16.reduce((s, x) => s + x * x, 0) / window16.length);
     updateLevel(rms);
-    if (rms < 0.004) { Object.keys(streak).forEach(k => streak[k] = 0); return; }
+    if (rms < 0.004) { Object.keys(streak).forEach(k => streak[k] = 0); customSounds.forEach(c => streak["c" + c.id] = 0); return; }
     const input = tf.tensor(window16);
     let out;
     try { out = model.predict(input); } finally { input.dispose(); }
+    const outs = Array.isArray(out) ? out : [out];
     const scoresT = Array.isArray(out) ? out[0] : (out.scores || out);
     const mean = scoresT.rank > 1 ? scoresT.max(0) : scoresT;
     const scores = await mean.data();
-    (Array.isArray(out) ? out : [out]).forEach(t => t.dispose?.()); if (mean !== scoresT) mean.dispose();
+    let emb = null;                                            // fingerprint of this moment, only needed for taught sounds
+    if (customSounds.length && outs[1]) {
+      const m = outs[1].rank > 1 ? outs[1].mean(0) : outs[1];
+      const d = await m.data(); if (d.length === EMB_DIM) emb = l2norm(d);
+      if (m !== outs[1]) m.dispose();
+    }
+    outs.forEach(t => t.dispose?.()); if (mean !== scoresT) mean.dispose();
     const best = {};
     for (let i = 0; i < scores.length; i++) {
       const cat = classNames[i] && categorize(classNames[i]);
@@ -132,6 +157,20 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify };   // expose
       streak[cat] = hit ? (streak[cat] || 0) + 1 : 0;
       if (streak[cat] >= (NEED_HITS[cat] || 1)) trigger(cat, best[cat], false);
     });
+    if (emb) customSounds.forEach(cs => {
+      const sim = bestSimilarity(emb, cs.vectors), key = "c" + cs.id;
+      streak[key] = sim >= cs.threshold ? (streak[key] || 0) + 1 : 0;
+      if (streak[key] >= 2 || sim >= cs.threshold + 0.05) triggerCustom(cs, sim);   // a very strong match needs only one window
+    });
+  }
+  function triggerCustom(cs, score) {
+    const now = Date.now(), key = "c" + cs.id;
+    if (now - (lastFire[key] || 0) < 6000) return;
+    lastFire[key] = now;
+    PUL.haptic.alert(cs.pattern, { label: cs.name });
+    PUL.say(`${cs.name} ${PUL.t("detected")}`, { level: "info", short: cs.name });
+    PUL.saveEvent("sound_custom", `${cs.name} detected (${Math.round(score * 100)}% match, taught sound).`, "info");
+    showCard({ emoji: cs.emoji, severity: "info" }, cs.name, score);
   }
 
   /* ---- basic mode ---- */
@@ -215,6 +254,7 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify };   // expose
       if (startBtn) startBtn.disabled = true; if (stopBtn) stopBtn.disabled = false;
       setStatus(PUL.t("Loading sound model…"));
       try { if (!model) await loadYamnet(); engine = "yamnet"; } catch (_) { engine = "basic"; }
+      await loadCustom();
       if (engine === "yamnet") {
         processor = ctx.createScriptProcessor(4096, 1, 1);
         mute = ctx.createGain(); mute.gain.value = 0;
@@ -250,8 +290,125 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify };   // expose
     const ind = $("#sound-indicator"); if (ind) ind.textContent = PUL.t("Sound monitoring is off.");
     if (was && !quiet) PUL.say(PUL.t("Sound alerts stopped."), { silent: true });
   }
-  PUL.sound = { start, stop, get running() { return running; }, get engine() { return engine; } };
+  PUL.sound = { start, stop, capture: captureSeconds, loadCustom, _classifyWindow: classifyWindow, get running() { return running; }, get engine() { return engine; } };
   window.addEventListener("pagehide", () => stop({ quiet: true }));
+
+  /* ---- Teach a Sound ---- */
+  const TEACH_PATTERNS = { single: [180], double: [150, 100, 150], triple: [100, 70, 100, 70, 100], long: [650], urgent: [450, 120, 450, 120, 450] };
+  async function ensureModel() {
+    if (model) return;
+    try { await loadYamnet(); } catch (_) { throw new Error("model"); }     // any failure -> one clear message for the user
+  }
+  async function loadCustom() {
+    try {
+      const list = await api("/api/custom-sounds");
+      customSounds = list.map(c => ({ ...c, vectors: c.embeddings.map(v => l2norm(v)) }));
+    } catch (_) { customSounds = []; }
+  }
+  /* Records `sec` seconds from the microphone and returns 16 kHz mono samples. */
+  async function captureSeconds(sec) {
+    const media = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    let c; try { c = new AudioContext({ sampleRate: 16000 }); } catch (_) { c = new (window.AudioContext || window.webkitAudioContext)(); }
+    if (c.state === "suspended") await c.resume();
+    const src = c.createMediaStreamSource(media), proc = c.createScriptProcessor(4096, 1, 1), quiet = c.createGain();
+    quiet.gain.value = 0; const chunks = [];
+    proc.onaudioprocess = e => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    src.connect(proc); proc.connect(quiet); quiet.connect(c.destination);
+    await PUL.wait(sec * 1000);
+    proc.disconnect(); quiet.disconnect(); media.getTracks().forEach(t => t.stop());
+    const rate = c.sampleRate; c.close();
+    const flat = new Float32Array(chunks.reduce((n, a) => n + a.length, 0)); let o = 0;
+    chunks.forEach(a => { flat.set(a, o); o += a.length; });
+    return resample(flat, rate, 16000, Math.round(flat.length * 16000 / rate));
+  }
+  async function embedWindow(chunk) {
+    const input = tf.tensor(chunk); let out;
+    try { out = model.predict(input); } finally { input.dispose(); }
+    const outs = Array.isArray(out) ? out : [out];
+    if (!outs[1]) { outs.forEach(t => t.dispose?.()); throw new Error(PUL.t("The sound model gave no fingerprint. Try again.")); }
+    const m = outs[1].rank > 1 ? outs[1].mean(0) : outs[1];
+    const d = await m.data();
+    if (m !== outs[1]) m.dispose(); outs.forEach(t => t.dispose?.());
+    if (d.length !== EMB_DIM) throw new Error(PUL.t("The sound model gave no fingerprint. Try again."));
+    return l2norm(d);
+  }
+  /* Fingerprints of every loud-enough moment (0.975 s windows, 0.5 s apart). */
+  async function embedWaveform(wave) {
+    const vectors = [], win = 15600, hop = 7800;
+    for (let st = 0; st + win <= wave.length; st += hop) {
+      const chunk = wave.subarray(st, st + win);
+      const rms = Math.sqrt(chunk.reduce((s, x) => s + x * x, 0) / chunk.length);
+      if (rms >= 0.01) vectors.push(await embedWindow(chunk));
+    }
+    return vectors;
+  }
+  async function finishTeach(name, say) {
+    const cal = calibrate(teach.clips);
+    if (cal.raw < 0.65) { teach.clips = []; say(PUL.t("The three samples sounded too different. Try again, making the same sound each time.")); return; }
+    const vectors = teach.clips.flat().slice(0, 16);
+    await api("/api/custom-sounds", { method: "POST", body: JSON.stringify({
+      name, emoji: $("#teach-emoji").value, pattern: TEACH_PATTERNS[$("#teach-pattern").value] || TEACH_PATTERNS.double,
+      threshold: Math.round(cal.threshold * 100) / 100, embeddings: vectors.map(v => Array.from(v, x => Math.round(x * 1e4) / 1e4)) }) });
+    teach.clips = []; $("#teach-name").value = "";
+    await loadCustom(); renderCustom();
+    say(PUL.t("Saved. Sound alerts are on. Make the sound to test it."));
+    PUL.saveEvent("sound", `Taught a new sound: ${name}.`, "info");
+    if (!running) start();
+  }
+  function renderCustom() {
+    const list = $("#custom-list"); if (!list) return;
+    list.replaceChildren();
+    if (!customSounds.length) { const li = document.createElement("li"); li.textContent = PUL.t("No taught sounds yet."); list.append(li); return; }
+    customSounds.forEach(cs => {
+      const li = document.createElement("li"); li.className = "custom-row";
+      const label = document.createElement("span"); label.textContent = `${cs.emoji} ${cs.name}`;
+      const range = document.createElement("input"); range.type = "range"; range.min = 60; range.max = 97; range.value = Math.round(cs.threshold * 100);
+      range.setAttribute("aria-label", `${PUL.t("Match strictness")}: ${cs.name}`);
+      range.addEventListener("change", async () => {
+        try { await api(`/api/custom-sounds/${cs.id}`, { method: "PUT", body: JSON.stringify({ threshold: Number(range.value) / 100 }) }); await loadCustom(); }
+        catch (e) { PUL.say(e.message, { level: "danger" }); }
+      });
+      const test = document.createElement("button"); test.type = "button"; test.textContent = PUL.t("Test");
+      test.setAttribute("aria-label", `${PUL.t("Test")}: ${cs.name}`);
+      test.addEventListener("click", () => PUL.haptic.alert(cs.pattern, { label: cs.name }));
+      const del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = PUL.t("Delete");
+      del.setAttribute("aria-label", `${PUL.t("Delete")} ${cs.name}`);
+      del.addEventListener("click", async () => { await api(`/api/custom-sounds/${cs.id}`, { method: "DELETE" }); await loadCustom(); renderCustom(); });
+      li.append(label, range, test, del); list.append(li);
+    });
+  }
+  function teachInit(on) {
+    teach = { clips: [], busy: false };
+    const record = $("#teach-record"), dots = $("#teach-dots");
+    if (!record) return;
+    const say = msg => { const el = $("#teach-status"); if (el) el.textContent = msg; PUL.announce(msg); };
+    const paint = () => { dots.textContent = "●".repeat(teach.clips.length) + "○".repeat(3 - teach.clips.length); record.textContent = `${PUL.t("Record sample")} ${Math.min(teach.clips.length + 1, 3)} / 3`; };
+    paint(); loadCustom().then(renderCustom);
+    on(record, "click", async () => {
+      if (teach.busy) return;
+      const name = $("#teach-name").value.trim();
+      if (!name) { say(PUL.t("Type a name for the sound first.")); $("#teach-name").focus(); return; }
+      teach.busy = true; record.disabled = true;
+      try {
+        say(PUL.t("Loading sound model…")); await ensureModel();
+        say(PUL.t("Get ready. Make the sound after the beep.")); PUL.audio(); await PUL.wait(900);
+        PUL.beep(880, 150); say(PUL.t("Recording…"));
+        const wave = await PUL.sound.capture(2.5);
+        PUL.beep(660, 120); setTimeout(() => PUL.beep(660, 120), 200);
+        const vecs = await embedWaveform(wave);
+        if (!vecs.length) say(PUL.t("I could not hear the sound. Move closer and try again."));
+        else {
+          teach.clips.push(vecs); paint();
+          if (teach.clips.length < 3) say(`${PUL.t("Sample saved. Press the button for the next one.")} ${teach.clips.length} / 3`);
+          else await finishTeach(name, say);
+        }
+      } catch (e) {
+        say(e.message === "model" || e.message === "classes" ? PUL.t("Teach a Sound needs the sound model, which could not load. Check your internet and try again.") : e.message);
+      }
+      teach.busy = false; record.disabled = false; paint();
+    });
+    on($("#teach-reset"), "click", () => { teach.clips = []; paint(); say(PUL.t("Samples cleared.")); });
+  }
 
   /* ---- hearing page: vibration table, toggles, captions ---- */
   function renderPatterns() {
@@ -273,7 +430,7 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify };   // expose
     init() {
       uiCleanup = [];
       const on = (el, ev, fn) => { if (!el) return; el.addEventListener(ev, fn); uiCleanup.push(() => el.removeEventListener(ev, fn)); };
-      renderPatterns();
+      renderPatterns(); teachInit(on);
       const flash = $("#flash-toggle"), vib = $("#vibrate-toggle"), sens = $("#sensitivity");
       if (flash) flash.checked = PUL.opts.flash; if (vib) vib.checked = PUL.opts.vibrate;
       if (sens) sens.value = PUL.store.get("pulanova-sensitivity", "3");
@@ -291,10 +448,11 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify };   // expose
     run(action) {
       if (action === "sound") return start();
       if (action === "sound-stop") return stop();
+      if (action === "teach") { const el = $("#teach-name"); el?.scrollIntoView?.({ behavior: "smooth" }); return el?.focus(); }
       if (action === "captions") return PUL.captionsPage?.start();
       if (action === "captions-stop") return PUL.captionsPage?.stop();
     },
-    refresh() { renderPatterns(); },
+    refresh() { renderPatterns(); renderCustom(); },
     destroy() { PUL.captionsPage?.stop(); uiCleanup.forEach(fn => fn()); uiCleanup = []; },   // sound alerts keep running
   };
 })();

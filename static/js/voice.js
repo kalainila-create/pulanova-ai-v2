@@ -42,6 +42,7 @@ const PAGE_URL = { home: "/", visual: "/visual", hearing: "/hearing", bridge: "/
   cmd(["stop finding", "stop search"], ["தேடலை நிறுத்து"], () => PUL.vision?.stopFind());
   cmd(["stop camera", "close camera"], ["கேமராவை நிறுத்து", "கேமராவை மூடு"], () => PUL.vision?.stopCamera());
   cmd(["open camera", "start camera"], ["கேமராவைத் திற", "கேமராவைத் தொடங்கு", "கேமரா திற"], () => { PUL.tsay("Starting camera."); PUL.request("visual", "camera"); });
+  cmd(["teach a sound", "teach sound", "learn a sound", "teach new sound"], ["ஒலியைக் கற்றுக்கொடு"], () => { PUL.tsay("Opening Teach a Sound."); PUL.request("hearing", "teach"); });
   cmd(["stop sound", "stop alerts"], ["ஒலி எச்சரிக்கையை நிறுத்து"], () => PUL.request("hearing", "sound-stop"));
   cmd(["start sound", "sound alerts", "listen for sounds", "sound identity"], ["ஒலி எச்சரிக்கை", "ஒலி அடையாளம்"], () => { PUL.tsay("Sound alerts started."); PUL.request("hearing", "sound"); });
   cmd(["stop captions"], ["வசனங்களை நிறுத்து"], () => PUL.request("hearing", "captions-stop"));

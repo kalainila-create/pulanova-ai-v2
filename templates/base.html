@@ -82,6 +82,17 @@
   <div id="live-polite" class="sr-only" role="status" aria-live="polite"></div>
   <div id="live-assertive" class="sr-only" role="alert" aria-live="assertive"></div>
 
+  <div id="setup-gate" class="voice-gate" role="dialog" aria-modal="true" aria-labelledby="setup-title" hidden>
+    <div class="gate-card">
+      <h2 id="setup-title" data-t>Welcome to PULANOVA. How can it help you?</h2>
+      <p data-t>Press 1, 2, 3 or 4, or press Enter on a button. You can change this later in Profiles.</p>
+      <button type="button" class="button button-xl" data-setup="visual" id="setup-first" data-t>1. I cannot see well. Use voice.</button>
+      <button type="button" class="button button-xl" data-setup="hearing" data-t>2. I cannot hear well. Use captions and vibration.</button>
+      <button type="button" class="button button-xl" data-setup="deafblind" data-t>3. Both. Use touch and Braille.</button>
+      <button type="button" class="button button-xl button-secondary" data-setup="everyday" data-t>4. Neither. Standard settings.</button>
+    </div>
+  </div>
+
   <div id="voice-gate" class="voice-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title" hidden>
     <div class="gate-card">
       <h2 id="gate-title" data-t>Welcome to PULANOVA</h2>

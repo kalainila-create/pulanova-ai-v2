@@ -257,3 +257,7 @@ button.tile { font: inherit; color: var(--ink); text-align: left; }
 .prose h2 { margin-top: 1.4em; }
 .forgot { margin-top: 18px; } .forgot summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
 .site-footer a { color: inherit; }
+.teach-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+.teach-dots { font-size: 1.6rem; letter-spacing: .35em; color: var(--accent-ink); margin: 10px 0 0; }
+.custom-row input[type=range] { width: 160px; vertical-align: middle; }
+@media (max-width: 760px) { .teach-grid { grid-template-columns: 1fr; } }

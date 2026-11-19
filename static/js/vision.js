@@ -25,7 +25,8 @@ const CLASS_TA = { person: "நபர்", car: "கார்", bus: "பேர�
   "traffic light": "போக்குவரத்து விளக்கு", couch: "சோபா", bed: "படுக்கை", "dining table": "மேசை", tv: "தொலைக்காட்சி", cow: "மாடு" };
 const VEHICLES = ["car", "bus", "truck", "motorcycle", "bicycle", "train"];
 
-/* Rupee notes (Mahatma Gandhi series): main colours, as HSV. A colour-only helper, not a verifier. */
+/* Rupee notes in active circulation (Mahatma Gandhi New series): main colours, as HSV. Colour is only a cross-check:
+   older-design notes that are still legal tender (for example the earlier green ₹100) have different colours. */
 const NOTES = [
   { value: 10,   h: 25,  s: 0.55, v: 0.50 },   // chocolate brown
   { value: 20,   h: 70,  s: 0.60, v: 0.75 },   // greenish yellow
@@ -33,8 +34,7 @@ const NOTES = [
   { value: 100,  h: 270, s: 0.30, v: 0.75 },   // lavender
   { value: 200,  h: 42,  s: 0.80, v: 0.95 },   // bright yellow
   { value: 500,  h: 45,  s: 0.08, v: 0.60 },   // stone grey
-  { value: 2000, h: 320, s: 0.60, v: 0.75 },   // magenta
-];
+];   // The withdrawn ₹2000 note is not in this colour list (see VALID_NOTES: it is still read by its printed number).
 function rgbToHsv(r, g, b) {
   r /= 255; g /= 255; b /= 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
@@ -328,6 +328,7 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
       basis = `${PUL.t("by the printed number")}. ${PUL.t("The colour suggests")} ${colour}. ${PUL.t("Please confirm with another person.")}`;
     } else if (colour) { value = colour; level = "caution"; basis = `${PUL.t("by colour only")}. ${PUL.t("Please confirm with another person.")}`; }
 
+    if (value === 2000) basis += `. ${PUL.t("This note was withdrawn from circulation in 2023 but is still legal tender. Banks and RBI offices can exchange it.")}`;
     if (!value) {
       if (out) out.textContent = "?";
       narrate(PUL.t("I am not sure. Hold the note flat in good light."), { level: "caution" }); return;
