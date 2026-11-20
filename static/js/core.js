@@ -168,15 +168,18 @@ function bindToolbar() {
 }
 
 /* ---------- pages & router ---------- */
-PUL.pageGuidance = () => {
+/* Short by default (just the page title) so the person can speak straight away; full = title + description. */
+PUL.pageGuidance = (full = false) => {
   const h1 = $("main h1")?.textContent?.trim() || "";
+  if (!full) return h1;
   const p = $("main .page-heading p:last-child, main .hero-copy")?.textContent?.trim() || "";
   return [h1, p].filter(Boolean).join(". ");
 };
-PUL.announcePage = () => {
-  const text = PUL.pageGuidance();
+PUL.announcePage = ({ full = false } = {}) => {
+  const text = PUL.pageGuidance(full);
   if (text) PUL.say(text, { short: $("main h1")?.textContent?.trim() });
 };
+PUL.quietNav = false;      // set by voice commands: they have already said "Opening ..."
 /* One-shot action for the page that is about to open (from ?do=… or a voice command). */
 PUL.queue = (name, args = {}) => { PUL.pending = { name, args }; };
 PUL.takeAction = () => {
@@ -193,7 +196,8 @@ PUL.mountPage = ({ announce = false } = {}) => {
   PUL.current = name;
   PUL.applyI18n(main);
   PUL.pages[name]?.init?.(main);
-  if (announce && (PUL.settings().autoAnnounce || PUL.voice?.active)) PUL.announcePage();
+  if (announce && !PUL.quietNav && (PUL.settings().autoAnnounce || PUL.voice?.active)) PUL.announcePage();
+  PUL.quietNav = false;
 };
 PUL.unmountPage = () => { PUL.pages[PUL.current]?.destroy?.(); };
 
@@ -239,7 +243,9 @@ document.addEventListener("DOMContentLoaded", () => {
   PUL.mountPage();
   PUL.setup?.show();
   PUL.voice?.boot?.();
-  if (PUL.settings().autoAnnounce) setTimeout(() => PUL.announcePage(), 600);
+  if (PUL.settings().autoAnnounce) setTimeout(() => { if ($("#voice-gate")?.hidden !== false && $("#setup-gate")?.hidden !== false) PUL.announcePage(); }, 600);
+  // Escape stops anything being spoken, so a person can always interrupt and talk
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { try { speechSynthesis.cancel(); } catch (_) {} } });
 });
 
 /* Load a script once (TensorFlow.js, models, Tesseract) only when a feature needs it. */

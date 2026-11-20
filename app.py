@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 from datetime import timedelta
 from pathlib import Path
 
-from flask import Flask, g, jsonify, render_template, request, send_from_directory, session
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from sqlalchemy.exc import IntegrityError
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -41,7 +41,9 @@ if os.environ.get("PULANOVA_PROXY") == "1":     # running behind Render / anothe
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 db.init_app(app, BASE_DIR)
 
-MAX_CONTACTS, MAX_PROFILES, MAX_EVENTS = 20, 20, 500
+MAX_CONTACTS, MAX_PROFILES, MAX_EVENTS, MAX_CUSTOM_SOUNDS = 20, 20, 500, 10
+EMBEDDING_DIM = 1024
+SOUND_EMOJIS = ["🔊", "🍲", "🔔", "🚪", "📱", "⏰", "🐈", "🚂", "💧", "🍳"]
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$")
 UNSAFE = {"POST", "PUT", "PATCH", "DELETE"}
 _DUMMY_HASH = generate_password_hash("not-a-real-password")
@@ -219,6 +221,24 @@ for _route, _endpoint, _template in [
     ("/dashboard", "dashboard", "dashboard.html"), ("/about", "about", "about.html"),
 ]:
     app.add_url_rule(_route, _endpoint, page(_template))
+
+
+PRESET_BY_MODE = {"visual": "Visually challenged", "hearing": "Hearing impaired",
+                  "deafblind": "Deafblind", "everyday": "Everyday (default)"}
+
+
+@app.get("/start/<mode>")
+def start_mode(mode):
+    """One-tap link for a helper: /start/visual switches this browser to the voice-first profile."""
+    name = PRESET_BY_MODE.get(mode)
+    if name is None:
+        abort(404)
+    row = db.one_row("SELECT id FROM profiles WHERE user_id = :u AND name = :n", u=uid(), n=name)
+    if row:
+        with db.engine.begin() as conn:
+            conn.execute(db.text("UPDATE profiles SET is_active = 0 WHERE user_id = :u"), {"u": uid()})
+            conn.execute(db.text("UPDATE profiles SET is_active = 1 WHERE id = :i AND user_id = :u"), {"i": row["id"], "u": uid()})
+    return redirect(url_for("home", setup="done"))
 
 
 @app.get("/privacy")
@@ -417,6 +437,94 @@ def delete_profile(profile_id):
 
 
 # --------------------------------------------------------------------------
+# Teach a Sound: numeric fingerprints (YAMNet embeddings) of sounds the user taught
+# --------------------------------------------------------------------------
+def clean_embeddings(raw):
+    """3-16 vectors of exactly 1024 finite numbers. Only fingerprints are stored, never audio."""
+    if not isinstance(raw, list) or not 3 <= len(raw) <= 16:
+        return None
+    out = []
+    for vec in raw:
+        if not isinstance(vec, list) or len(vec) != EMBEDDING_DIM:
+            return None
+        try:
+            nums = [round(float(x), 4) for x in vec]
+        except (TypeError, ValueError):
+            return None
+        if any(x != x or abs(x) > 10 for x in nums):
+            return None
+        out.append(nums)
+    return out
+
+
+def custom_to_dict(row, with_embeddings=True):
+    item = {"id": row["id"], "name": row["name"], "emoji": row["emoji"],
+            "pattern": json.loads(row["pattern"]), "threshold": row["threshold"]}
+    if with_embeddings:
+        item["embeddings"] = json.loads(row["embeddings"])
+    return item
+
+
+def clean_threshold(value, default=0.8):
+    try:
+        return max(0.6, min(0.97, float(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+@app.get("/api/custom-sounds")
+def list_custom_sounds():
+    return jsonify([custom_to_dict(r) for r in db.all_rows(
+        "SELECT * FROM custom_sounds WHERE user_id = :u ORDER BY id", u=uid())])
+
+
+@app.post("/api/custom-sounds")
+def add_custom_sound():
+    data = request.get_json(silent=True) or {}
+    name = clean_text(data.get("name"), 40)
+    embeddings = clean_embeddings(data.get("embeddings"))
+    if not name:
+        return jsonify(error="Give the sound a name."), 400
+    if embeddings is None:
+        return jsonify(error="The sound samples are not valid. Record them again."), 400
+    if db.one_row("SELECT COUNT(*) AS n FROM custom_sounds WHERE user_id = :u", u=uid())["n"] >= MAX_CUSTOM_SOUNDS:
+        return jsonify(error=f"You can teach up to {MAX_CUSTOM_SOUNDS} sounds."), 400
+    if db.one_row("SELECT 1 AS x FROM custom_sounds WHERE user_id = :u AND name = :n", u=uid(), n=name):
+        return jsonify(error="You already taught a sound with this name."), 409
+    emoji = data.get("emoji") if data.get("emoji") in SOUND_EMOJIS else "🔊"
+    pattern = clean_pattern(data.get("pattern")) or [200, 100, 200]
+    new_id = db.insert_returning_id(
+        "INSERT INTO custom_sounds (user_id, name, emoji, pattern, threshold, embeddings, created_at) "
+        "VALUES (:u, :n, :e, :p, :t, :v, :c) RETURNING id",
+        u=uid(), n=name, e=emoji, p=json.dumps(pattern), t=clean_threshold(data.get("threshold")),
+        v=json.dumps(embeddings), c=db.now())
+    row = db.one_row("SELECT * FROM custom_sounds WHERE id = :i", i=new_id)
+    return jsonify(custom_to_dict(row, with_embeddings=False)), 201
+
+
+@app.put("/api/custom-sounds/<int:sound_id>")
+def update_custom_sound(sound_id):
+    data = request.get_json(silent=True) or {}
+    row = db.one_row("SELECT * FROM custom_sounds WHERE id = :i AND user_id = :u", i=sound_id, u=uid())
+    if row is None:
+        return jsonify(error="Sound not found."), 404
+    name = clean_text(data.get("name"), 40) or row["name"]
+    if db.one_row("SELECT 1 AS x FROM custom_sounds WHERE user_id = :u AND name = :n AND id != :i", u=uid(), n=name, i=sound_id):
+        return jsonify(error="You already taught a sound with this name."), 409
+    pattern = clean_pattern(data.get("pattern")) or json.loads(row["pattern"])
+    db.run("UPDATE custom_sounds SET name = :n, pattern = :p, threshold = :t WHERE id = :i AND user_id = :u",
+           n=name, p=json.dumps(pattern), t=clean_threshold(data.get("threshold"), row["threshold"]), i=sound_id, u=uid())
+    return jsonify(custom_to_dict(db.one_row("SELECT * FROM custom_sounds WHERE id = :i", i=sound_id), with_embeddings=False))
+
+
+@app.delete("/api/custom-sounds/<int:sound_id>")
+def delete_custom_sound(sound_id):
+    if not db.run("DELETE FROM custom_sounds WHERE id = :i AND user_id = :u", i=sound_id, u=uid()):
+        return jsonify(error="Sound not found."), 404
+    return jsonify(message="Sound deleted.")
+
+
+# --------------------------------------------------------------------------
 # Account: guest -> registered, login, logout, export, delete
 # --------------------------------------------------------------------------
 @app.get("/api/account")
@@ -541,7 +649,8 @@ def export_data():
         account=public_account(g.user),
         profiles=[profile_to_dict(r) for r in db.all_rows("SELECT * FROM profiles WHERE user_id = :u ORDER BY id", u=uid())],
         contacts=db.all_rows("SELECT name, phone, relationship, is_primary FROM contacts WHERE user_id = :u ORDER BY id", u=uid()),
-        events=db.all_rows("SELECT event_type, message, severity, created_at FROM events WHERE user_id = :u ORDER BY id", u=uid()))
+        events=db.all_rows("SELECT event_type, message, severity, created_at FROM events WHERE user_id = :u ORDER BY id", u=uid()),
+        custom_sounds=db.all_rows("SELECT name, emoji, threshold, created_at FROM custom_sounds WHERE user_id = :u ORDER BY id", u=uid()))
 
 
 @app.delete("/api/account")
@@ -552,7 +661,7 @@ def delete_account():
         if not check_password_hash(row["password_hash"], data.get("password") if isinstance(data.get("password"), str) else ""):
             return jsonify(error="Wrong password."), 401
     with db.engine.begin() as conn:
-        for table in ("events", "contacts", "profiles", "password_resets"):
+        for table in ("events", "contacts", "profiles", "password_resets", "custom_sounds"):
             conn.execute(db.text(f"DELETE FROM {table} WHERE user_id = :u"), {"u": uid()})
         conn.execute(db.text("DELETE FROM users WHERE id = :u"), {"u": uid()})
     session.clear()

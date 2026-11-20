@@ -19,6 +19,7 @@
     <div class="button-row">
       <button class="button" id="start-camera" data-t>Start camera</button>
       <button class="button button-secondary" id="stop-camera" disabled data-t>Stop camera</button>
+      <button class="button button-secondary" id="torch-toggle" aria-pressed="false" hidden data-t>Flashlight</button>
     </div>
     <p id="model-status" class="status-text" role="status" data-t>Model not loaded.</p>
     <div id="danger-level" class="danger-level level-safe" role="status" aria-live="polite"><span id="danger-label" data-t>Safe</span></div>
@@ -42,8 +43,10 @@
       <p data-t>Hold printed text steadily in front of the camera, then press Read text.</p>
       <div class="button-row">
         <button class="button" id="read-text" data-t>Read text</button>
+        <button class="button" id="read-date" data-t>Read expiry date</button>
         <button class="button button-secondary" id="stop-reading" data-t>Stop reading</button>
       </div>
+      <p class="hint" data-t>For small print and dates: hold the pack 20 to 30 centimetres away, keep it steady, tilt it to avoid glare, and use the flashlight in dim light.</p>
       <label class="field-label" for="ocr-output" data-t>Text found</label>
       <textarea id="ocr-output" rows="5" readonly></textarea>
     </div>
@@ -70,7 +73,7 @@
     <h3 data-t>Voice commands</h3>
     <ul class="simple-list">
       <li data-t>“Identify surroundings”</li>
-      <li data-t>“Read text” · “Stop reading”</li>
+      <li data-t>“Read text” · “Read expiry date” · “Stop reading”</li>
       <li data-t>“Find my bag” · “Find my phone”</li>
       <li data-t>“Check currency”</li>
       <li data-t>“Emergency” · “Go back”</li>

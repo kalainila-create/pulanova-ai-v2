@@ -51,7 +51,93 @@ function classifyNote(r, g, b) {
   }).sort((a, b2) => a.d - b2.d);
   return { value: scored[0].value, margin: scored[1].d - scored[0].d };
 }
-window.PUL_visionTest = { classifyNote, rgbToHsv };
+
+/* ---- OCR helpers (pure functions, unit-tested) ---- */
+function ocrWords(data) {
+  if (Array.isArray(data.words) && data.words.length) return data.words;
+  const out = [];
+  for (const b of data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) for (const w of l.words || []) out.push(w);
+  return out;
+}
+const JUNK = /[^\p{L}\p{N}\p{M}\s.,:;\/%₹&()+\-@#!?'"]/gu;
+/* Keep only confident words, drop lines that are mostly symbols, remove stray symbols that a speech engine would read aloud. */
+function cleanOcrText(data, minConf = 60) {
+  let lines = data.lines;
+  if (!Array.isArray(lines) || !lines.length) {
+    const words = ocrWords(data); lines = words.length ? [{ words }] : [];
+  }
+  const out = []; let good = 0;
+  for (const line of lines) {
+    const keep = [];
+    for (const w of line.words || []) {
+      if ((w.confidence ?? 0) < minConf || !/[\p{L}\p{N}]/u.test(w.text)) continue;
+      // a lone letter is usually noise, except 'a', 'I' and units such as the g or l after a number (500 g)
+      const prev = keep[keep.length - 1];
+      if (w.text.length === 1 && !/\p{N}/u.test(w.text) && !/^[aAiI]$/.test(w.text) && !(prev && /\p{N}/u.test(prev.text) && /^[gGlLmM]$/.test(w.text))) continue;
+      keep.push(w);
+    }
+    if (!keep.length) continue;
+    let text = keep.map(w => w.text).join(" ").replace(JUNK, " ").replace(/\s+/g, " ").trim();
+    const visible = text.replace(/\s/g, ""), alnum = (visible.match(/[\p{L}\p{N}]/gu) || []).length;
+    if (visible.length < 2 || alnum / visible.length < 0.6) continue;
+    out.push(text); good += keep.length;
+  }
+  if (!out.length && typeof data.text === "string") {                 // engines that return only plain text
+    const t = data.text.replace(JUNK, " ").replace(/[ \t]+/g, " ").trim();
+    return { text: t, good: t.split(/\s+/).filter(w => w.length > 1).length };
+  }
+  return { text: out.join("\n"), good };
+}
+
+const MONTHS = "JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC";
+const D = "[0-9OIL]";                                                  // OCR often reads 0 as O and 1 as I or L
+const fixDigits = s => s.replace(/\b[0-9OIL]+\b/g, t => t.replace(/O/g, "0").replace(/[IL]/g, "1"));   // whole digit-like words only, so NOV stays NOV
+const DATE_PATTERNS = [
+  new RegExp(`(${D}{1,2})[\\/.\\-](${D}{1,2})[\\/.\\-](${D}{4}|${D}{2})(?![0-9])`, "g"),            // 12/11/2026
+  new RegExp(`(${D}{1,2})[\\/.\\-\\s]?(${MONTHS})[A-Z]*[\\/.\\-\\s]?(${D}{4}|${D}{2})(?![0-9])`, "g"), // 12 NOV 2026
+  new RegExp(`(${MONTHS})[A-Z]*[\\/.\\-\\s]?(${D}{4}|${D}{2})(?![0-9])`, "g"),                        // NOV 2026
+  new RegExp(`(${D}{1,2})[\\/.\\-](${D}{4})(?![0-9])`, "g"),                                          // 11/2026
+];
+const LABELS = [
+  [/(EXP(?:IRY)?\.?(?:\s*DATE)?|USE\s*BY|BEST\s*BEFORE|B\/B|BB)\s*[:.\-]?\s*$/, "expiry"],
+  [/(MFD?\.?|MFG\.?|MANUFACTURED?|PKD\.?|PACKED(?:\s*ON)?)(?:\s*DATE)?\s*[:.\-]?\s*$/, "made"],
+];
+/* Finds dates in OCR text and labels them as expiry / made / plain date. */
+function parseDates(raw) {
+  const text = String(raw).toUpperCase().replace(/[\u2013\u2014]/g, "-").replace(/\s+/g, " ");
+  const found = [], seen = new Set(), spans = [];
+  DATE_PATTERNS.forEach(re => {
+    re.lastIndex = 0; let m;
+    while ((m = re.exec(text))) {
+      const s0 = m.index, s1 = m.index + m[0].length;
+      if (spans.some(([a, b]) => s0 < b && s1 > a)) continue;           // already covered by a longer date
+      const shown = fixDigits(m[0]).trim();
+      const before = text.slice(Math.max(0, m.index - 24), m.index);
+      let kind = "date";
+      for (const [rx, k] of LABELS) if (rx.test(before)) { kind = k; break; }
+      // plain numbers like 12.5 or a price are not dates: need a label, a month name, or a 4-digit year
+      if (kind === "date" && !new RegExp(MONTHS).test(shown) && !/(?:^|[^0-9])\d{4}(?![0-9])/.test(shown)) continue;
+      const key = shown.replace(/\D/g, "") + kind; if (seen.has(key)) continue; seen.add(key); spans.push([s0, s1]);
+      found.push({ kind, text: shown, spoken: shown.replace(/[\/.\-]/g, " ").replace(/\s+/g, " ") });
+    }
+  });
+  const life = text.match(/(\d{1,2})\s*(MONTHS?|DAYS?|YEARS?)\s*(?:FROM|OF|AFTER)\s*(?:THE\s*)?(?:DATE\s*OF\s*)?(MFG|MFD|PACKING|MANUFACTURE|PACKAGING)/);
+  if (life) found.push({ kind: "shelf", text: life[0], spoken: `${life[1]} ${life[2].toLowerCase()}` });
+  const order = { expiry: 0, shelf: 1, made: 2, date: 3 };
+  return found.sort((a, b) => order[a.kind] - order[b.kind]);
+}
+
+/* Decide what to tell the user about a note. Colour alone is never trusted for the grey 500 note. */
+function decideNote({ printed, strong, colour }) {
+  if (printed) {
+    if (!colour || colour === printed || strong) return { value: printed, basis: "printed", level: "info" };
+    return { value: printed, basis: "conflict", colour, level: "caution" };
+  }
+  if (colour && colour !== 500) return { value: colour, basis: "colour", level: "caution" };
+  return { value: null };
+}
+window.PUL_visionTest = { classifyNote, rgbToHsv, cleanOcrText, parseDates, decideNote };
+
 
 (() => {
   let stream = null, model = null, mode = null, loopToken = 0, cleanup = [];
@@ -71,27 +157,40 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
       return hit ? hit[0] : null;
     },
     stopReading() { readToken++; speechSynthesis?.cancel(); },
-    stopFind, stopCamera,
+    stopFind, stopCamera, toggleTorch,
   };
 
   /* ---- camera + model ---- */
+  let torchOn = false;
   async function startCamera() {
     if (stream) return true;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error(PUL.t("Camera access is not available in this browser."));
       setStatus(PUL.t("Requesting camera permission…"));
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      // Ask for a sharp picture: small printed numbers and dates need resolution to be read reliably.
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
       const video = v(); video.srcObject = stream; video.style.display = "block";
       $("#camera-placeholder").hidden = true;
       await video.play();
       $("#start-camera").disabled = true; $("#stop-camera").disabled = false;
+      const track = stream.getVideoTracks()[0], torch = $("#torch-toggle");
+      torchOn = false;
+      if (torch) { torch.hidden = !(track.getCapabilities?.().torch); torch.setAttribute("aria-pressed", "false"); }
       setStatus("");
       PUL.saveEvent("camera", "Camera started.", "info");
       return true;
     } catch (e) { setStatus(e.message); stopCamera(); return false; }
   }
+  async function toggleTorch() {
+    const track = stream?.getVideoTracks()[0];
+    if (!track?.getCapabilities?.().torch) return narrate(PUL.t("The flashlight is not available on this camera."));
+    torchOn = !torchOn;
+    try { await track.applyConstraints({ advanced: [{ torch: torchOn }] }); } catch (_) { torchOn = !torchOn; return; }
+    $("#torch-toggle")?.setAttribute("aria-pressed", String(torchOn));
+    narrate(PUL.t(torchOn ? "Flashlight on." : "Flashlight off."), { interrupt: true });
+  }
   function stopCamera() {
-    loopToken++; stopBeeps();
+    loopToken++; stopBeeps(); torchOn = false;
     stream?.getTracks().forEach(t => t.stop()); stream = null;
     const video = v();
     if (video) { video.pause(); video.srcObject = null; video.style.display = "none"; }
@@ -229,6 +328,38 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
   }
   function stopFind() { loopToken++; stopBeeps(); clearOverlay(); narrate(PUL.t("Finding stopped."), { interrupt: true }); }
 
+  /* ---- shared camera/OCR helpers ---- */
+  const grab = video => { const c = document.createElement("canvas"); c.width = video.videoWidth; c.height = video.videoHeight; c.getContext("2d").drawImage(video, 0, 0); return c; };
+  function small(c, w) { const t = document.createElement("canvas"); t.width = w; t.height = Math.max(1, Math.round(c.height * w / c.width)); const g = t.getContext("2d", { willReadFrequently: true }); g.drawImage(c, 0, 0, t.width, t.height); return { g, w: t.width, h: t.height }; }
+  function sharpness(c) {                                      // variance of the Laplacian: higher = sharper picture
+    const { g, w, h } = small(c, 160), d = g.getImageData(0, 0, w, h).data, gray = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) gray[i] = 0.299 * d[4 * i] + 0.587 * d[4 * i + 1] + 0.114 * d[4 * i + 2];
+    let s = 0, s2 = 0, n = 0;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = y * w + x, l = 4 * gray[i] - gray[i - 1] - gray[i + 1] - gray[i - w] - gray[i + w]; s += l; s2 += l * l; n++; }
+    return n ? s2 / n - (s / n) ** 2 : 0;
+  }
+  function meanLuma(c) { const { g, w, h } = small(c, 32), d = g.getImageData(0, 0, w, h).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; return s / (d.length / 4); }
+  async function bestFrame(video, n = 3, gap = 180) {            // hand shake blurs frames; keep the sharpest of a few
+    let best = null, top = -1;
+    for (let i = 0; i < n; i++) { const c = grab(video), sc = sharpness(c); if (sc > top) { top = sc; best = c; } if (i < n - 1) await PUL.wait(gap); }
+    return best;
+  }
+  function prepForOcr(src, angle = 0) {                            // grayscale + contrast; gentle upscale only for sharp HD frames
+    const turned = angle === 90 || angle === 270, long = Math.max(src.width, src.height);
+    const scale = long >= 1000 ? Math.min(1.6, 2000 / long) : 1;
+    const w = Math.round(src.width * scale), h = Math.round(src.height * scale), c = document.createElement("canvas");
+    c.width = turned ? h : w; c.height = turned ? w : h;
+    const g = c.getContext("2d"); g.filter = long >= 1000 ? "grayscale(1) contrast(1.4)" : "grayscale(1) contrast(1.2)";
+    g.translate(c.width / 2, c.height / 2); g.rotate(angle * Math.PI / 180); g.drawImage(src, -w / 2, -h / 2, w, h);
+    return c;
+  }
+  const ocrWorkers = {};
+  async function getWorker(key, langs) {
+    if (!ocrWorkers[key]) { await PUL.loadScript(OCR_URL); ocrWorkers[key] = await Tesseract.createWorker(langs); }
+    return ocrWorkers[key];
+  }
+  window.addEventListener("pagehide", () => Object.values(ocrWorkers).forEach(w => w.terminate?.()));
+
   /* ---- mode: read text ---- */
   async function speakLong(text, token) {
     const chunks = text.replace(/\s+/g, " ").match(/[^.!?।]+[.!?।]?/g) || [text];
@@ -240,104 +371,132 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
   async function readText() {
     if (!(await startCamera())) return;
     setMode("text");
-    const token = ++readToken, out = $("#ocr-output");
+    const token = ++readToken, out = $("#ocr-output"), ta = PUL.lang() === "ta";
     narrate(PUL.t("Reading the text, please wait."), { interrupt: true });
     try {
-      setStatus(PUL.t("Loading text reader…")); await PUL.loadScript(OCR_URL);
-      const video = v(), canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext("2d").drawImage(video, 0, 0);
-      const { data } = await Tesseract.recognize(canvas, PUL.lang() === "ta" ? "tam+eng" : "eng");
+      setStatus(PUL.t("Loading text reader…"));
+      const worker = await getWorker(ta ? "text-ta" : "text-en", ta ? "tam+eng" : "eng");
+      const frame = await bestFrame(v());
+      if (meanLuma(frame) < 55) narrate(PUL.t("It is dark. Turn on the flashlight or move to a brighter place."), { interrupt: false });
+      let best = { text: "", good: -1 };
+      for (const psm of ["3", "11"]) {                             // normal layout first, then scattered text
+        await worker.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: "" });
+        const { data } = await worker.recognize(prepForOcr(frame));
+        const r = cleanOcrText(data, ta ? 45 : 60);
+        if (r.good > best.good) best = r;
+        if (r.good >= 8) break;
+      }
       if (token !== readToken) return;
-      const text = (data.text || "").replace(/[ \t]+/g, " ").trim();
       setStatus("");
-      if (out) out.value = text;
-      if (!text || text.length < 3) { narrate(PUL.t("No text found. Move closer and try again.")); return; }
-      PUL.announce(text, { short: text.slice(0, 40) });
-      PUL.saveEvent("ocr", `Read ${text.length} characters of text.`, "info");
-      await speakLong(text, token);
+      if (out) out.value = best.text;
+      if (best.good < 2) { narrate(PUL.t("No text found. Move closer and try again.")); return; }
+      PUL.announce(best.text, { short: best.text.slice(0, 40) });
+      PUL.saveEvent("ocr", `Read ${best.text.length} characters of text.`, "info");
+      await speakLong(best.text.replace(/\n/g, ". "), token);
+    } catch (e) { setStatus(e.message); narrate(e.message, { level: "caution" }); }
+  }
+
+  /* ---- mode: read the expiry date on a pack ---- */
+  const DATE_WHITELIST = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/.-: ";
+  const KIND_LABEL = { expiry: "Expiry", made: "Made on", shelf: "Best before", date: "Date" };
+  async function readDate() {
+    if (!(await startCamera())) return;
+    setMode("text");
+    const token = ++readToken, out = $("#ocr-output");
+    narrate(PUL.t("Looking for the date…"), { interrupt: true });
+    try {
+      setStatus(PUL.t("Loading text reader…"));
+      const worker = await getWorker("date", "eng");
+      const frame = await bestFrame(v(), 3, 180);
+      if (meanLuma(frame) < 55) narrate(PUL.t("It is dark. Turn on the flashlight or move to a brighter place."), { interrupt: false });
+      let all = "", found = [];
+      for (const [angle, psm, wl] of [[0, "11", DATE_WHITELIST], [90, "11", DATE_WHITELIST], [270, "11", DATE_WHITELIST], [0, "3", ""]]) {
+        await worker.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: wl });
+        const { data } = await worker.recognize(prepForOcr(frame, angle));
+        all += " " + (data.text || ""); found = parseDates(all);
+        if (token !== readToken) return;
+        if (found.some(f => f.kind === "expiry")) break;
+      }
+      setStatus("");
+      if (out) out.value = all.replace(/\s+/g, " ").trim();
+      if (!found.length) { narrate(PUL.t("I could not find a date. Hold the pack 20 to 30 centimetres away, tilt it to avoid glare, and try again."), { level: "caution" }); return; }
+      const message = found.slice(0, 3).map(f => `${PUL.t(KIND_LABEL[f.kind])}: ${f.spoken}`).join(". ");
+      narrate(message, { short: found[0].text });
+      PUL.saveEvent("ocr", `Read a date on a pack (${found[0].kind}).`, "info");
     } catch (e) { setStatus(e.message); narrate(e.message, { level: "caution" }); }
   }
 
   /* ---- mode: Indian currency ----
-     Two checks: (1) OCR reads the large printed number (10/20/50/100/200/500/2000), which is the reliable signal;
-     (2) the note colour is only a cross-check, because room light and a coloured wall change what the camera sees. */
+     (1) OCR reads the large printed number (the reliable signal); (2) colour is only a cross-check.
+     Colour is never trusted alone for the grey 500 note, because a mixed or washed-out picture always averages to grey. */
   const VALID_NOTES = new Set([10, 20, 50, 100, 200, 500, 2000]);
-  function frameCanvas(video, angle) {
-    const c = document.createElement("canvas"), turned = angle === 90 || angle === 270;
-    c.width = turned ? video.videoHeight : video.videoWidth; c.height = turned ? video.videoWidth : video.videoHeight;
-    const g = c.getContext("2d");
-    g.filter = "grayscale(1) contrast(1.5)";
-    g.translate(c.width / 2, c.height / 2); g.rotate(angle * Math.PI / 180);
-    g.drawImage(video, -video.videoWidth / 2, -video.videoHeight / 2);
-    return c;
-  }
-  async function ocrDenomination(video) {
-    await PUL.loadScript(OCR_URL);
-    const worker = await Tesseract.createWorker("eng");
-    const counts = {};
-    try {
-      await worker.setParameters({ tessedit_char_whitelist: "0123456789", tessedit_pageseg_mode: Tesseract.PSM?.SPARSE_TEXT ?? "11" });
-      for (const angle of [0, 90, 270]) {          // notes are often held sideways; the side numeral is vertical
-        const { data } = await worker.recognize(frameCanvas(video, angle));
+  const isSkin = (r, g, b) => r > 95 && g > 40 && b > 20 && r > g && r > b && (r - g) > 15 && (Math.max(r, g, b) - Math.min(r, g, b)) > 15;
+  const median = a => a.sort((x, y) => x - y)[a.length >> 1];
+  async function readDenomination(video) {                        // staged: stop as soon as the number is read clearly
+    const worker = await getWorker("digits", "eng");
+    await worker.setParameters({ tessedit_pageseg_mode: "11", tessedit_char_whitelist: "0123456789" });
+    const counts = {}, leader = () => Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    let tasks = 0;
+    for (let round = 0; round < 2; round++) {
+      const frame = await bestFrame(video, 3, 160);
+      for (const angle of [0, 90, 270]) {                         // notes are often held sideways
+        const { data } = await worker.recognize(prepForOcr(frame, angle)); tasks++;
         (data.text.match(/\d+/g) || []).forEach(tok => { const n = Number(tok); if (VALID_NOTES.has(n) && String(n) === tok) counts[n] = (counts[n] || 0) + 1; });
+        const top = leader();
+        if (top && (top[1] >= 2 || tasks >= 3)) break;
       }
-    } finally { await worker.terminate(); }
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      const top = leader(); if (top && (top[1] >= 2 || round === 1)) break;
+    }
+    const top = leader();
     return top ? { value: Number(top[0]), hits: top[1], total: Object.values(counts).reduce((a, b) => a + b, 0) } : null;
   }
-  const isSkin = (r, g, b) => r > 95 && g > 40 && b > 20 && r > g && r > b && (r - g) > 15 && (Math.max(r, g, b) - Math.min(r, g, b)) > 15;
-
+  function colourVotes(video) {                                    // nine blocks over the middle of the picture
+    const votes = [], sw = video.videoWidth * 0.66, sh = video.videoHeight * 0.66;
+    const cv = document.createElement("canvas"); cv.width = cv.height = 144;
+    const g = cv.getContext("2d", { willReadFrequently: true });
+    g.drawImage(video, (video.videoWidth - sw) / 2, (video.videoHeight - sh) / 2, sw, sh, 0, 0, 144, 144);
+    for (let by = 0; by < 3; by++) for (let bx = 0; bx < 3; bx++) {
+      const px = g.getImageData(bx * 48, by * 48, 48, 48).data, R = [], G = [], B = [];
+      for (let k = 0; k < px.length; k += 4) {
+        const br = (px[k] + px[k + 1] + px[k + 2]) / 3;
+        if (br > 35 && br < 245 && !isSkin(px[k], px[k + 1], px[k + 2])) { R.push(px[k]); G.push(px[k + 1]); B.push(px[k + 2]); }
+      }
+      if (R.length < 500) continue;
+      const mr = median(R), mg = median(G), mb = median(B), hsv = rgbToHsv(mr, mg, mb);
+      if (hsv.s < 0.18 || hsv.v < 0.25) continue;                  // grey walls, hair and shadows say nothing about a note
+      const r = classifyNote(mr, mg, mb);
+      if (r.margin >= 0.08) votes.push(r.value);
+    }
+    return votes;
+  }
   async function checkCurrency() {
     if (!(await startCamera())) return;
     setMode("currency");
     const out = $("#currency-result"), video = v();
     narrate(PUL.t("Checking the note. Hold it flat in the middle of the camera."), { interrupt: true });
-    const tiny = document.createElement("canvas"); tiny.width = tiny.height = 40;
-    const g = tiny.getContext("2d", { willReadFrequently: true });
-    const votes = {}; let n = 0, margins = 0;
-    for (let i = 0; i < 10 && stream; i++) {
-      await PUL.wait(250);
-      if (video.readyState < 2) continue;
-      const sw = video.videoWidth * 0.4, sh = video.videoHeight * 0.3;
-      g.drawImage(video, (video.videoWidth - sw) / 2, (video.videoHeight - sh) / 2, sw, sh, 0, 0, 40, 40);
-      const px = g.getImageData(0, 0, 40, 40).data, R = [], G = [], B = [];
-      for (let k = 0; k < px.length; k += 4) {
-        const br = (px[k] + px[k + 1] + px[k + 2]) / 3;
-        if (br > 35 && br < 245 && !isSkin(px[k], px[k + 1], px[k + 2])) { R.push(px[k]); G.push(px[k + 1]); B.push(px[k + 2]); }
-      }
-      if (R.length < 200) continue;
-      const med = a => a.sort((x, y) => x - y)[a.length >> 1];
-      const r = classifyNote(med(R), med(G), med(B));
-      votes[r.value] = (votes[r.value] || 0) + 1; margins += r.margin; n++;
-    }
-    const best = Object.entries(votes).sort((a, b) => b[1] - a[1])[0];
-    const colour = best && n >= 6 && best[1] / n >= 0.7 && margins / n >= 0.15 ? Number(best[0]) : null;   // strict
+    const tally = {}; let total = 0;
+    for (let i = 0; i < 8 && stream; i++) { await PUL.wait(200); if (video.readyState < 2) continue; colourVotes(video).forEach(c => { tally[c] = (tally[c] || 0) + 1; total++; }); }
+    const ranked = Object.entries(tally).sort((a, b) => b[1] - a[1]);
+    const colour = ranked[0] && ranked[0][1] >= 6 && ranked[0][1] >= 0.45 * total && ranked[0][1] >= 2 * (ranked[1]?.[1] || 0) ? Number(ranked[0][0]) : null;
 
     narrate(PUL.t("Reading the number on the note…"), { interrupt: true });
     let printed = null, strong = false;
-    try {
-      const r = await ocrDenomination(video);
-      if (r) { printed = r.value; strong = r.hits >= 2 && r.hits === r.total; }   // read at least twice, never contradicted
-    } catch (e) { console.warn(e); }
+    try { const r = await readDenomination(video); if (r) { printed = r.value; strong = r.hits >= 2 && r.hits === r.total; } } catch (e) { console.warn(e); }
 
-    let value = null, basis = "", level = "info";
-    if (printed && (!colour || colour === printed || strong)) { value = printed; basis = PUL.t("by the printed number"); }
-    else if (printed && colour && colour !== printed) {
-      value = printed; level = "caution";
-      basis = `${PUL.t("by the printed number")}. ${PUL.t("The colour suggests")} ${colour}. ${PUL.t("Please confirm with another person.")}`;
-    } else if (colour) { value = colour; level = "caution"; basis = `${PUL.t("by colour only")}. ${PUL.t("Please confirm with another person.")}`; }
-
-    if (value === 2000) basis += `. ${PUL.t("This note was withdrawn from circulation in 2023 but is still legal tender. Banks and RBI offices can exchange it.")}`;
-    if (!value) {
+    const d = decideNote({ printed, strong, colour });
+    if (!d.value) {
       if (out) out.textContent = "?";
-      narrate(PUL.t("I am not sure. Hold the note flat in good light."), { level: "caution" }); return;
+      narrate(PUL.t("I could not read the number. Hold the note flat and close, with the big number facing the camera, in good light."), { level: "caution" }); return;
     }
-    if (out) out.textContent = `₹${value} · ${value} ${PUL.t("rupees")} — ${basis}`;
-    narrate(`${value} ${PUL.t("rupees")}, ${basis}`, { level, short: `₹${value}` });
-    const pulses = { 10: 1, 20: 2, 50: 3, 100: 4, 200: 5, 500: 6, 2000: 7 }[value] || 1;   // buzzes = denomination rank
-    PUL.haptic.play(Array.from({ length: pulses * 2 - 1 }, (_, k) => (k % 2 ? 110 : 160)), { label: `₹${value}` });
-    PUL.saveEvent("currency", `Note identified as ${value} rupees (${printed ? "printed number" : "colour only"}).`, level === "info" ? "info" : "caution");
+    let basis = d.basis === "printed" ? PUL.t("by the printed number")
+      : d.basis === "conflict" ? `${PUL.t("by the printed number")}. ${PUL.t("The colour suggests")} ${d.colour}. ${PUL.t("Please confirm with another person.")}`
+      : `${PUL.t("by colour only")}. ${PUL.t("Please confirm with another person.")}`;
+    if (d.value === 2000) basis += `. ${PUL.t("This note was withdrawn from circulation in 2023 but is still legal tender. Banks and RBI offices can exchange it.")}`;
+    if (out) out.textContent = `₹${d.value} · ${d.value} ${PUL.t("rupees")} — ${basis}`;
+    narrate(`${d.value} ${PUL.t("rupees")}, ${basis}`, { level: d.level, short: `₹${d.value}` });
+    const pulses = { 10: 1, 20: 2, 50: 3, 100: 4, 200: 5, 500: 6, 2000: 7 }[d.value] || 1;   // buzzes = denomination rank
+    PUL.haptic.play(Array.from({ length: pulses * 2 - 1 }, (_, k) => (k % 2 ? 110 : 160)), { label: `₹${d.value}` });
+    PUL.saveEvent("currency", `Note identified as ${d.value} rupees (${d.basis === "colour" ? "colour only" : "printed number"}).`, d.level === "info" ? "info" : "caution");
   }
 
   /* ---- page wiring ---- */
@@ -358,6 +517,8 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
     if (action === "camera") return startCamera();
     if (action === "identify") return startIdentify();
     if (action === "text") return readText();
+    if (action === "date") return readDate();
+    if (action === "torch") return toggleTorch();
     if (action === "find") return startFind(args.target);
     if (action === "currency") return checkCurrency();
   };
@@ -372,7 +533,7 @@ window.PUL_visionTest = { classifyNote, rgbToHsv };
         const m = b.dataset.mode; setMode(m);
         if (m === "identify") startIdentify();
       }));
-      on($("#read-text"), "click", readText); on($("#stop-reading"), "click", () => PUL.vision.stopReading());
+      on($("#read-text"), "click", readText); on($("#read-date"), "click", readDate); on($("#torch-toggle"), "click", toggleTorch); on($("#stop-reading"), "click", () => PUL.vision.stopReading());
       on($("#start-find"), "click", () => startFind()); on($("#stop-find"), "click", stopFind);
       on($("#check-currency"), "click", checkCurrency);
       const act = PUL.takeAction(); if (act) run(act.name, act.args);

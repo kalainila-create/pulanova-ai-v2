@@ -282,7 +282,7 @@
       gate.hidden = true; $("#main")?.focus();
       if (mode === "visual") {                                          // this key press/tap is the gesture the browser needs
         PUL.voice?.start({ quiet: true });
-        PUL.say(`${PUL.t("Voice assistant ready.")} ${PUL.pageGuidance()}`);
+        PUL.say(PUL.t("Voice assistant ready. Say help to hear the commands."));
       } else PUL.announce(PUL.t(NAMES[mode]));
     },
   };

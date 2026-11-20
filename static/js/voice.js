@@ -16,9 +16,10 @@ const PAGE_URL = { home: "/", visual: "/visual", hearing: "/hearing", bridge: "/
   PUL.request = (page, action, args = {}) => {
     if (PUL.current === page && PUL.pages[page]?.run) return PUL.pages[page].run(action, args);
     PUL.queue(action, args);
+    PUL.quietNav = true;                 // the command already confirmed what is happening; do not read the page out again
     return PUL.go(PAGE_URL[page]);
   };
-  const openPage = (name, msg) => { PUL.tsay(msg); if (PUL.current !== name) PUL.go(PAGE_URL[name]); };
+  const openPage = (name, msg) => { PUL.tsay(msg); if (PUL.current !== name) { PUL.quietNav = true; PUL.go(PAGE_URL[name]); } };
 
   /* ---- command table: phrases are matched with String.includes on normalised text ---- */
   const C = [];
@@ -28,12 +29,14 @@ const PAGE_URL = { home: "/", visual: "/visual", hearing: "/hearing", bridge: "/
   cmd(["cancel", "never mind"], ["ரத்து", "வேண்டாம்"], () => {
     if (PUL.emergency?.active) PUL.emergency.cancel(); else PUL.tsay("Emergency cancelled.", { silent: true });
   });
-  cmd(["stop reading", "be quiet"], ["வாசிப்பதை நிறுத்து", "நிறுத்து படிப்பதை"], () => { PUL.vision?.stopReading(); speechSynthesis?.cancel(); PUL.tsay("Reading stopped.", { silent: true }); });
+  cmd(["stop reading", "be quiet", "stop talking", "silence"], ["வாசிப்பதை நிறுத்து", "நிறுத்து படிப்பதை"], () => { PUL.vision?.stopReading(); speechSynthesis?.cancel(); PUL.tsay("Reading stopped.", { silent: true }); });
   cmd(["open emergency", "emergency page"], ["அவசரப் பக்கம்"], () => openPage("emergency", "Opening emergency page."));
   cmd(["emergency", "help me", "sos", "i need help"], ["அவசரம்", "உதவி தேவை", "காப்பாற்று"], () => {
     PUL.tsay("Starting emergency. Say cancel to stop.", { assertive: true });
     PUL.request("emergency", "sos");
   });
+  cmd(["expiry date", "expiry", "expire", "best before", "read date", "read the date", "use by"], ["காலாவதி தேதி", "காலாவதி"], () => { PUL.tsay("Looking for the date…"); PUL.request("visual", "date"); });
+  cmd(["flashlight", "torch", "turn on the light"], ["டார்ச்", "விளக்கு"], () => PUL.request("visual", "torch"));
   cmd(["read text", "read this", "read the text", "read it"], ["உரையைப் படி", "உரையை படி", "படி"], () => { PUL.tsay("Reading text. Hold the page steady."); PUL.request("visual", "text"); });
   cmd(["identify surroundings", "describe surroundings", "what is around", "what's around", "identify objects", "what is in front"],
       ["சுற்றுப்புறத்தை அடையாளம்", "சுற்றுப்புறம்", "பொருட்களை அடையாளம்"], () => { PUL.tsay("Starting object identification."); PUL.request("visual", "identify"); });
@@ -56,7 +59,7 @@ const PAGE_URL = { home: "/", visual: "/visual", hearing: "/hearing", bridge: "/
   cmd(["open dashboard", "dashboard"], ["கட்டுப்பாட்டுப் பலகை", "பலகை"], () => openPage("dashboard", "Opening dashboard."));
   cmd(["open about", "about page", "about"], ["திட்டம் பற்றி"], () => openPage("about", "Opening about page."));
   cmd(["go back", "back"], ["பின்செல்", "திரும்பிச் செல்", "பின்னால்"], () => { PUL.tsay("Going back."); history.length > 1 ? history.back() : PUL.go("/"); });
-  cmd(["repeat", "say again", "where am i"], ["மீண்டும் கூறு", "மீண்டும்"], () => PUL.announcePage());
+  cmd(["repeat", "say again", "where am i"], ["மீண்டும் கூறு", "மீண்டும்"], () => PUL.announcePage({ full: true }));
   cmd(["help", "what can i say", "commands"], ["உதவி", "கட்டளைகள்"], () => PUL.tsay("Say open home, visual, hearing, conversation, tactile, emergency, profiles or dashboard. Say identify surroundings, read text, stop reading, find my bag, check currency, start sound alerts, start captions, go back, repeat, or emergency."));
 
   const normalise = s => s.toLowerCase().replace(/[.,!?'’"]/g, " ").replace(/\s+/g, " ").trim();
@@ -152,11 +155,11 @@ const PAGE_URL = { home: "/", visual: "/visual", hearing: "/hearing", bridge: "/
     boot() {
       $("#global-voice-start")?.addEventListener("click", () => PUL.voice.start());
       $("#global-voice-stop")?.addEventListener("click", () => PUL.voice.stop());
-      $("#repeat-guidance")?.addEventListener("click", () => PUL.announcePage());
+      $("#repeat-guidance")?.addEventListener("click", () => PUL.announcePage({ full: true }));
       $("#language-select")?.addEventListener("change", () => { if (this.active) { this.stop({ quiet: true }); setTimeout(() => this.start({ quiet: true }), 300); } });
       window.addEventListener("keydown", e => {
         if (e.altKey && e.code === "KeyV") { e.preventDefault(); this.toggle(); }
-        else if (e.altKey && e.code === "KeyR") { e.preventDefault(); PUL.announcePage(); }
+        else if (e.altKey && e.code === "KeyR") { e.preventDefault(); PUL.announcePage({ full: true }); }
         else if (e.altKey && e.code === "KeyE") { e.preventDefault(); handle("emergency"); }
         else if (e.key === "Escape" && PUL.emergency?.active) PUL.emergency.cancel();
       });
@@ -166,7 +169,7 @@ const PAGE_URL = { home: "/", visual: "/visual", hearing: "/hearing", bridge: "/
       // Voice-first gate: browsers need one tap/Enter before speech can start.
       const gate = $("#voice-gate");
       const done = () => { gate.hidden = true; sessionStorage.setItem("pulanova-gate", "1"); $("#main")?.focus(); };
-      $("#gate-start")?.addEventListener("click", () => { done(); this.start({ quiet: true }); PUL.say(PUL.t("Voice assistant ready.") + " " + PUL.pageGuidance(), { silent: false }); });
+      $("#gate-start")?.addEventListener("click", () => { done(); this.start({ quiet: true }); PUL.say(PUL.t("Voice assistant ready. Say help to hear the commands."), { silent: false }); });
       $("#gate-skip")?.addEventListener("click", done);
       gate?.addEventListener("keydown", e => { if (e.key === "Escape") done(); });
       let seen = false; try { seen = sessionStorage.getItem("pulanova-gate") === "1"; } catch (_) {}

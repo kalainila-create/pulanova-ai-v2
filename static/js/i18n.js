@@ -200,3 +200,13 @@ Object.assign(window.PUL_TA, {
   "This note was withdrawn from circulation in 2023 but is still legal tender. Banks and RBI offices can exchange it.":"இந்த நோட்டு 2023-இல் புழக்கத்திலிருந்து திரும்பப் பெறப்பட்டது, ஆனாலும் செல்லுபடியாகும். வங்கிகளிலும் RBI அலுவலகங்களிலும் மாற்றிக்கொள்ளலாம்.",
   "PULANOVA reads the printed number first. Colour is only a cross-check, because older-design notes have different colours. Confirm important notes with another person or the RBI MANI app.":"PULANOVA முதலில் அச்சிட்ட எண்ணைப் படிக்கும். பழைய வடிவ நோட்டுகளுக்கு வேறு நிறங்கள் இருப்பதால் நிறம் ஒரு சரிபார்ப்பு மட்டுமே. முக்கிய நோட்டுகளை மற்றவரிடம் அல்லது RBI MANI செயலியில் உறுதிசெய்யவும்."
 });
+Object.assign(window.PUL_TA, {
+  "Read expiry date":"காலாவதி தேதியைப் படி","Flashlight":"டார்ச் விளக்கு","Flashlight on.":"டார்ச் இயக்கப்பட்டது.","Flashlight off.":"டார்ச் அணைக்கப்பட்டது.","The flashlight is not available on this camera.":"இந்தக் கேமராவில் டார்ச் இல்லை.",
+  "It is dark. Turn on the flashlight or move to a brighter place.":"இருட்டாக உள்ளது. டார்ச்சை இயக்குங்கள் அல்லது வெளிச்சமான இடத்திற்குச் செல்லுங்கள்.",
+  "Looking for the date…":"தேதியைத் தேடுகிறேன்…","Expiry":"காலாவதி","Made on":"தயாரிப்பு தேதி","Best before":"இதற்குள் பயன்படுத்தவும்","Date":"தேதி",
+  "I could not find a date. Hold the pack 20 to 30 centimetres away, tilt it to avoid glare, and try again.":"தேதி கிடைக்கவில்லை. பொட்டலத்தை 20 முதல் 30 சென்டிமீட்டர் தூரத்தில் பிடித்து, ஒளிர்வைத் தவிர்க்கச் சாய்த்து, மீண்டும் முயலுங்கள்.",
+  "I could not read the number. Hold the note flat and close, with the big number facing the camera, in good light.":"எண்ணைப் படிக்க இயலவில்லை. நல்ல வெளிச்சத்தில் நோட்டைத் தட்டையாக, அருகில், பெரிய எண் கேமராவை நோக்கி இருக்கப் பிடிக்கவும்.",
+  "For small print and dates: hold the pack 20 to 30 centimetres away, keep it steady, tilt it to avoid glare, and use the flashlight in dim light.":"சிறிய எழுத்துகள் மற்றும் தேதிகளுக்கு: பொட்டலத்தை 20 முதல் 30 சென்டிமீட்டர் தூரத்தில் அசையாமல் பிடித்து, ஒளிர்வைத் தவிர்க்கச் சாய்த்து, மங்கலான வெளிச்சத்தில் டார்ச்சைப் பயன்படுத்துங்கள்.",
+  "“Read text” · “Read expiry date” · “Stop reading”":"“உரையைப் படி” · “காலாவதி தேதியைப் படி” · “வாசிப்பதை நிறுத்து”",
+  "Voice assistant ready. Say help to hear the commands.":"குரல் உதவியாளர் தயார். கட்டளைகளைக் கேட்க உதவி என்று சொல்லுங்கள்."
+});
