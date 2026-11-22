@@ -210,3 +210,14 @@ Object.assign(window.PUL_TA, {
   "“Read text” · “Read expiry date” · “Stop reading”":"“உரையைப் படி” · “காலாவதி தேதியைப் படி” · “வாசிப்பதை நிறுத்து”",
   "Voice assistant ready. Say help to hear the commands.":"குரல் உதவியாளர் தயார். கட்டளைகளைக் கேட்க உதவி என்று சொல்லுங்கள்."
 });
+Object.assign(window.PUL_TA, {
+  "Check vibration":"அதிர்வைச் சரிபார்","browser supports vibration":"உலாவி அதிர்வை ஆதரிக்கிறது","mobile device":"கைபேசி சாதனம்","page tapped":"பக்கம் தொடப்பட்டது","result":"முடிவு",
+  "This browser cannot vibrate (for example iPhone Safari). PULANOVA shows a pulsing indicator and plays beeps instead.":"இந்த உலாவியால் அதிர முடியாது (எ.கா. iPhone Safari). அதற்குப் பதிலாக PULANOVA துடிக்கும் காட்டியையும் பீப் ஒலியையும் தரும்.",
+  "This looks like a computer, which has no vibration motor: the browser accepts the command but nothing can be felt. Use an Android phone with Chrome.":"இது கணினியாகத் தெரிகிறது; இதில் அதிர்வு மோட்டார் இல்லை. கட்டளையை உலாவி ஏற்கும் ஆனால் எதுவும் உணர முடியாது. Chrome உள்ள Android கைபேசியைப் பயன்படுத்துங்கள்.",
+  "The browser refused to vibrate. Tap the page once and try again, and use Chrome itself, not a browser inside another app.":"உலாவி அதிர மறுத்தது. பக்கத்தை ஒருமுறை தொட்டு மீண்டும் முயலுங்கள்; வேறு செயலிக்குள் உள்ள உலாவியை அல்ல, Chrome-ஐயே பயன்படுத்துங்கள்.",
+  "The browser sent a 0.4 second vibration. If you felt nothing, check the phone: vibration or haptic strength must be on in Settings, and Battery saver, Do Not Disturb or silent mode can switch it off.":"உலாவி 0.4 வினாடி அதிர்வை அனுப்பியது. எதுவும் உணரவில்லை என்றால் கைபேசியைச் சரிபாருங்கள்: அமைப்புகளில் அதிர்வு அல்லது ஹாப்டிக் வலிமை இயக்கத்தில் இருக்க வேண்டும்; பேட்டரி சேமிப்பு, தொந்தரவு செய்யாதே அல்லது அமைதிப் பயன்முறை அதை அணைக்கலாம்."
+});
+Object.assign(window.PUL_TA, {
+  "Use online text reading (more accurate, English only). The photo is sent to the OCR.space service and is not stored by PULANOVA.":"இணைய உரை வாசிப்பைப் பயன்படுத்து (அதிகத் துல்லியம், ஆங்கிலம் மட்டும்). புகைப்படம் OCR.space சேவைக்கு அனுப்பப்படும்; PULANOVA அதைச் சேமிக்காது.",
+  "Online text reading is on.":"இணைய உரை வாசிப்பு இயக்கத்தில் உள்ளது.","Online text reading is off.":"இணைய உரை வாசிப்பு முடக்கத்தில் உள்ளது."
+});

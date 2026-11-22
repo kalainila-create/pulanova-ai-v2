@@ -74,7 +74,7 @@ PUL.haptic = {
     if (ind) { ind.classList.add("on"); $("#haptic-label").textContent = label || (canVibrate ? PUL.t("Vibration") : PUL.t("Vibration") + " ·"); }
     for (let r = 0; r < repeat; r++) {
       if (token !== hapticToken) return false;
-      if (PUL.opts.vibrate && canVibrate) { try { navigator.vibrate(pattern); } catch (_) {} }
+      if (PUL.opts.vibrate && "vibrate" in navigator) { try { navigator.vibrate(pattern); } catch (_) {} }   // desktop Chrome accepts it and does nothing; beeps cover that case
       let t = 0;
       pattern.forEach((ms, i) => {
         if (i % 2 === 0) {
@@ -100,6 +100,25 @@ PUL.haptic = {
     PUL.flash({ red });
     return this.play(key, { repeat, label });
   },
+};
+
+/* Tells the user what the browser says about vibration, and why it may not be felt. */
+PUL.vibrationReport = () => {
+  const has = "vibrate" in navigator;
+  let result = null;
+  try { result = has ? navigator.vibrate(400) : null; } catch (e) { result = "error"; }
+  const active = navigator.userActivation ? navigator.userActivation.hasBeenActive : "unknown";
+  let verdict;
+  if (!has) verdict = PUL.t("This browser cannot vibrate (for example iPhone Safari). PULANOVA shows a pulsing indicator and plays beeps instead.");
+  else if (!isMobile) verdict = PUL.t("This looks like a computer, which has no vibration motor: the browser accepts the command but nothing can be felt. Use an Android phone with Chrome.");
+  else if (result === false) verdict = PUL.t("The browser refused to vibrate. Tap the page once and try again, and use Chrome itself, not a browser inside another app.");
+  else verdict = PUL.t("The browser sent a 0.4 second vibration. If you felt nothing, check the phone: vibration or haptic strength must be on in Settings, and Battery saver, Do Not Disturb or silent mode can switch it off.");
+  return `${verdict} [${PUL.t("browser supports vibration")}: ${has ? "yes" : "no"}; ${PUL.t("mobile device")}: ${isMobile ? "yes" : "no"}; ${PUL.t("page tapped")}: ${active}; ${PUL.t("result")}: ${result}]`;
+};
+PUL.bindVibrationCheck = (on) => {
+  const btn = $("#vib-check"), out = $("#vib-report");
+  if (!btn || !out) return;
+  on(btn, "click", () => { const text = PUL.vibrationReport(); out.textContent = text; PUL.announce(text); });
 };
 
 /* Draw a vibration pattern as dots and dashes. */
@@ -299,7 +318,7 @@ PUL.morse = {
   }
 
   PUL.pages.tactile = {
-    init() { cleanup = []; renderTiles(); setupTapPad(); setupMorse(); setupBraille(); },
+    init() { cleanup = []; renderTiles(); setupTapPad(); setupMorse(); setupBraille(); PUL.bindVibrationCheck(on); },
     refresh() { renderTiles(); },
     destroy() { PUL.morse.stop(); PUL.haptic.stop(); cleanup.forEach(fn => fn()); cleanup = []; },
   };

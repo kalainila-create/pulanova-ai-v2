@@ -5,6 +5,9 @@ import os
 import re
 import secrets
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections import defaultdict, deque
 from datetime import timedelta
 from pathlib import Path
@@ -19,6 +22,7 @@ import mailer
 from database import DEFAULT_SETTINGS
 
 BASE_DIR = Path(__file__).resolve().parent
+APP_VERSION = "2.6.0"
 IS_PRODUCTION = os.environ.get("PULANOVA_ENV") == "production"
 
 app = Flask(__name__, instance_relative_config=True)
@@ -31,7 +35,7 @@ if not secret:
 
 app.config.update(
     SECRET_KEY=secret,
-    MAX_CONTENT_LENGTH=1 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=1200 * 1024,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("PULANOVA_SECURE_COOKIES") == "1",
@@ -178,7 +182,7 @@ def sanitize_settings(raw):
         out["speechRate"] = max(0.5, min(1.6, float(raw.get("speechRate", 1.0))))
     except (TypeError, ValueError):
         out["speechRate"] = 1.0
-    for flag in ("contrast", "voiceFirst", "autoAnnounce", "flash", "vibrate", "beepFallback", "brailleMode"):
+    for flag in ("contrast", "voiceFirst", "autoAnnounce", "flash", "vibrate", "beepFallback", "brailleMode", "cloudOcr"):
         out[flag] = bool(raw.get(flag, base[flag]))
     out["captionSize"] = raw.get("captionSize") if raw.get("captionSize") in ("medium", "large", "xlarge") else "large"
     out["helpMessage"] = clean_text(raw.get("helpMessage"), 200) or base["helpMessage"]
@@ -200,9 +204,9 @@ def sanitize_settings(raw):
 def inject_boot():
     user = getattr(g, "user", None)
     if not user:
-        return {"boot_profile": None, "account": {"is_guest": True, "email": None, "display_name": ""}}
+        return {"boot_profile": None, "app_version": APP_VERSION, "account": {"is_guest": True, "email": None, "display_name": ""}}
     row = active_profile_row(user["id"])
-    return {"boot_profile": profile_to_dict(row) if row else None, "account": public_account(user)}
+    return {"boot_profile": profile_to_dict(row) if row else None, "app_version": APP_VERSION, "account": public_account(user)}
 
 
 # --------------------------------------------------------------------------
@@ -254,7 +258,9 @@ def manifest():
 
 @app.get("/healthz")
 def healthz():
-    return jsonify(status="ok", database=app.config["DB_KIND"], email_configured=mailer.configured())
+    model_dir = Path(app.static_folder) / "models" / "yamnet"
+    return jsonify(status="ok", version=APP_VERSION, database=app.config["DB_KIND"], email_configured=mailer.configured(),
+                   sound_model_files=all((model_dir / f).exists() for f in ("model.json", "group1-shard1of2.bin", "group1-shard2of2.bin", "yamnet_class_map.csv")))
 
 
 # --------------------------------------------------------------------------
@@ -434,6 +440,44 @@ def delete_profile(profile_id):
                 "UPDATE profiles SET is_active = 1 WHERE id = "
                 "(SELECT id FROM profiles WHERE user_id = :u ORDER BY id LIMIT 1)"), {"u": uid()})
     return jsonify(message="Profile deleted.")
+
+
+# --------------------------------------------------------------------------
+# Optional online text reading (OCR.space). Off unless the server has a key AND the user turns it on.
+# The picture is forwarded once and never stored or logged by PULANOVA.
+# --------------------------------------------------------------------------
+OCR_DEFAULT_URL = "https://api.ocr.space/parse/image"
+
+
+@app.get("/api/ocr/status")
+def ocr_status():
+    return jsonify(available=bool(os.environ.get("OCR_SPACE_API_KEY")))
+
+
+@app.post("/api/ocr")
+def online_ocr():
+    key = os.environ.get("OCR_SPACE_API_KEY")
+    if not key:
+        return jsonify(error="Online text reading is not set up on this server."), 503
+    if rate_limited(f"ocr:{uid()}", 20, 600):
+        return jsonify(error="Too many pictures in a short time. Wait a few minutes."), 429
+    data = request.get_json(silent=True) or {}
+    image = data.get("image")
+    if not isinstance(image, str) or len(image) > 900_000 or not re.fullmatch(r"data:image/(?:jpeg|png);base64,[A-Za-z0-9+/=]+", image):
+        return jsonify(error="The picture is not valid or is too large."), 400
+    form = urllib.parse.urlencode({"base64Image": image, "language": "eng", "OCREngine": "2", "scale": "true",
+                                   "detectOrientation": "true", "isOverlayRequired": "false"}).encode()
+    req = urllib.request.Request(os.environ.get("OCR_SPACE_URL", OCR_DEFAULT_URL), data=form,
+                                 headers={"apikey": key, "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=25) as response:
+            payload = json.loads(response.read())
+    except (urllib.error.URLError, ValueError, TimeoutError, OSError):
+        return jsonify(error="The online text service did not answer. Try again."), 502
+    if not isinstance(payload, dict) or payload.get("IsErroredOnProcessing"):
+        return jsonify(error="The online text service could not read this picture."), 502
+    text = "\n".join((item.get("ParsedText") or "") for item in payload.get("ParsedResults") or [] if isinstance(item, dict)).strip()
+    return jsonify(text=text[:5000])
 
 
 # --------------------------------------------------------------------------

@@ -1,4 +1,3 @@
-Optional offline copy of the YAMNet sound model (used by Sound Identity).
-Put these two things here and PULANOVA will use them instead of the internet:
-  model.json + its .bin shard files   (TensorFlow.js YAMNet graph model)
-  yamnet_class_map.csv                (from https://storage.googleapis.com/audioset/yamnet/yamnet_class_map.csv)
+YAMNet audio event classifier (Apache-2.0, Google) converted to TensorFlow.js (float16).
+Files: model.json, group1-shard1of2.bin, group1-shard2of2.bin, yamnet_class_map.csv.
+Outputs by shape: scores (1 x 521), embeddings (1 x 1024), log-mel spectrogram (96 x 64).

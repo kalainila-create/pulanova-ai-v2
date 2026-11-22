@@ -201,7 +201,7 @@ window.PUL_visionTest = { classifyNote, rgbToHsv, cleanOcrText, parseDates, deci
   async function ensureModel() {
     if (model) return model;
     setStatus(PUL.t("Loading object detection model…"));
-    await PUL.loadScript(TFJS_URL); await PUL.loadScript(COCO_URL);
+    await PUL.loadFirst(TFJS_URLS); await PUL.loadScript(COCO_URL);
     model = await cocoSsd.load();
     setStatus(PUL.t("Camera and model are ready."));
     return model;
@@ -360,6 +360,44 @@ window.PUL_visionTest = { classifyNote, rgbToHsv, cleanOcrText, parseDates, deci
   }
   window.addEventListener("pagehide", () => Object.values(ocrWorkers).forEach(w => w.terminate?.()));
 
+  /* Full-resolution still photo from the phone's camera (much sharper than a video frame), else the sharpest video frame. */
+  async function stillFrame(video) {
+    try {
+      const track = stream?.getVideoTracks()[0];
+      if ("ImageCapture" in window && track?.readyState === "live") {
+        const bmp = await createImageBitmap(await new ImageCapture(track).takePhoto());
+        const sc = Math.min(1, 2400 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+        c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+        c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+        return c;
+      }
+    } catch (_) { /* not supported here: use video frames */ }
+    return bestFrame(video, 4, 180);
+  }
+  /* Optional online reader (needs a server key and the user's consent in the toggle). */
+  let cloudReady = null;
+  async function useCloudAvailable() { if (cloudReady === null) { try { cloudReady = (await api("/api/ocr/status")).available === true; } catch (_) { cloudReady = false; } } return cloudReady; }
+  async function useCloud() {
+    if (!PUL.settings().cloudOcr || PUL.lang() === "ta") return false;
+    if (cloudReady === null) { try { cloudReady = (await api("/api/ocr/status")).available === true; } catch (_) { cloudReady = false; } }
+    return cloudReady;
+  }
+  async function cloudRead(canvas) {
+    let scale = Math.min(1, 1800 / Math.max(canvas.width, canvas.height)), quality = 0.8, url = "";
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElement("canvas"); c.width = Math.round(canvas.width * scale); c.height = Math.round(canvas.height * scale);
+      c.getContext("2d").drawImage(canvas, 0, 0, c.width, c.height);
+      url = c.toDataURL("image/jpeg", quality); if (url.length < 850000) break; scale *= 0.75; quality = 0.7;
+    }
+    const r = await api("/api/ocr", { method: "POST", body: JSON.stringify({ image: url, language: "eng" }) });
+    return r.text || "";
+  }
+  function plainClean(text) {
+    return text.split(/\r?\n/).map(l => l.replace(JUNK, " ").replace(/\s+/g, " ").trim()).filter(l => {
+      const vis = l.replace(/\s/g, ""), al = (vis.match(/[\p{L}\p{N}]/gu) || []).length; return vis.length >= 2 && al / vis.length >= 0.6;
+    }).join("\n");
+  }
+
   /* ---- mode: read text ---- */
   async function speakLong(text, token) {
     const chunks = text.replace(/\s+/g, " ").match(/[^.!?।]+[.!?।]?/g) || [text];
@@ -374,17 +412,22 @@ window.PUL_visionTest = { classifyNote, rgbToHsv, cleanOcrText, parseDates, deci
     const token = ++readToken, out = $("#ocr-output"), ta = PUL.lang() === "ta";
     narrate(PUL.t("Reading the text, please wait."), { interrupt: true });
     try {
-      setStatus(PUL.t("Loading text reader…"));
-      const worker = await getWorker(ta ? "text-ta" : "text-en", ta ? "tam+eng" : "eng");
-      const frame = await bestFrame(v());
+      const frame = await stillFrame(v());
       if (meanLuma(frame) < 55) narrate(PUL.t("It is dark. Turn on the flashlight or move to a brighter place."), { interrupt: false });
       let best = { text: "", good: -1 };
+      if (await useCloud()) {                                      // online reader first; fall back to the on-device reader
+        try { const t = plainClean(await cloudRead(frame)); if (t.length >= 3) best = { text: t, good: t.split(/\s+/).length }; } catch (e) { console.warn("online OCR:", e.message); }
+      }
+      if (best.good < 2) {
+      setStatus(PUL.t("Loading text reader…"));
+      const worker = await getWorker(ta ? "text-ta" : "text-en", ta ? "tam+eng" : "eng");
       for (const psm of ["3", "11"]) {                             // normal layout first, then scattered text
         await worker.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: "" });
         const { data } = await worker.recognize(prepForOcr(frame));
         const r = cleanOcrText(data, ta ? 45 : 60);
         if (r.good > best.good) best = r;
         if (r.good >= 8) break;
+      }
       }
       if (token !== readToken) return;
       setStatus("");
@@ -405,12 +448,13 @@ window.PUL_visionTest = { classifyNote, rgbToHsv, cleanOcrText, parseDates, deci
     const token = ++readToken, out = $("#ocr-output");
     narrate(PUL.t("Looking for the date…"), { interrupt: true });
     try {
-      setStatus(PUL.t("Loading text reader…"));
-      const worker = await getWorker("date", "eng");
-      const frame = await bestFrame(v(), 3, 180);
+      const frame = await stillFrame(v());
       if (meanLuma(frame) < 55) narrate(PUL.t("It is dark. Turn on the flashlight or move to a brighter place."), { interrupt: false });
       let all = "", found = [];
-      for (const [angle, psm, wl] of [[0, "11", DATE_WHITELIST], [90, "11", DATE_WHITELIST], [270, "11", DATE_WHITELIST], [0, "3", ""]]) {
+      if (await useCloud()) { try { all = await cloudRead(frame); found = parseDates(all); } catch (e) { console.warn("online OCR:", e.message); } }
+      if (!found.some(f => f.kind === "expiry")) setStatus(PUL.t("Loading text reader…"));
+      const worker = found.some(f => f.kind === "expiry") ? null : await getWorker("date", "eng");
+      if (worker) for (const [angle, psm, wl] of [[0, "11", DATE_WHITELIST], [90, "11", DATE_WHITELIST], [270, "11", DATE_WHITELIST], [0, "3", ""]]) {
         await worker.setParameters({ tessedit_pageseg_mode: psm, tessedit_char_whitelist: wl });
         const { data } = await worker.recognize(prepForOcr(frame, angle));
         all += " " + (data.text || ""); found = parseDates(all);
@@ -536,6 +580,8 @@ window.PUL_visionTest = { classifyNote, rgbToHsv, cleanOcrText, parseDates, deci
       on($("#read-text"), "click", readText); on($("#read-date"), "click", readDate); on($("#torch-toggle"), "click", toggleTorch); on($("#stop-reading"), "click", () => PUL.vision.stopReading());
       on($("#start-find"), "click", () => startFind()); on($("#stop-find"), "click", stopFind);
       on($("#check-currency"), "click", checkCurrency);
+      useCloudAvailable().then(ok => { const row = $("#cloud-row"); if (!ok || !row) return; row.hidden = false; const cb = $("#cloud-ocr"); cb.checked = !!PUL.settings().cloudOcr;
+        on(cb, "change", async () => { try { await PUL.saveSettings({ cloudOcr: cb.checked }); PUL.say(PUL.t(cb.checked ? "Online text reading is on." : "Online text reading is off."), { silent: true }); } catch (e) { PUL.say(e.message, { level: "danger" }); } }); });
       const act = PUL.takeAction(); if (act) run(act.name, act.args);
     },
     run, refresh() { fillTargets(); },

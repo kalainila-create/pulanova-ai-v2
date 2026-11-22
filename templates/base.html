@@ -7,9 +7,9 @@
   <link rel="manifest" href="{{ url_for('manifest') }}">
   <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
   <title>{% block title %}PULANOVA AI{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ app_version }}">
   {% set js = ['i18n', 'core', 'tactile', 'voice', 'sound', 'vision', 'bridge', 'emergency', 'pages'] %}
-  {% for name in js %}<script defer src="{{ url_for('static', filename='js/' ~ name ~ '.js') }}"></script>
+  {% for name in js %}<script defer src="{{ url_for('static', filename='js/' ~ name ~ '.js') }}?v={{ app_version }}"></script>
   {% endfor %}
 </head>
 <body>
@@ -65,6 +65,7 @@
 
       <footer class="site-footer">
         <p><span data-t>PULANOVA AI · An accessibility support project</span> · <a href="{{ url_for('privacy_page') }}" data-nav data-t>Privacy policy</a></p>
+        <p class="version">Version {{ app_version }}</p>
         <p data-t>Assistive features are experimental and do not replace professional safety devices or emergency services.</p>
       </footer>
     </div>

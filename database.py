@@ -35,7 +35,7 @@ DEFAULT_SETTINGS = {
     "needs": {"vision": False, "hearing": False},
     "language": "en", "fontScale": 100, "contrast": False,
     "voiceFirst": False, "autoAnnounce": False, "speechRate": 1.0,
-    "flash": True, "vibrate": True, "beepFallback": True, "brailleMode": False,
+    "flash": True, "vibrate": True, "beepFallback": True, "brailleMode": False, "cloudOcr": False,
     "captionSize": "large", "helpMessage": "I may need assistance.",
     "sounds": {k: True for k in ["doorbell", "horn", "emergency", "speech", "knock", "phone", "dog", "baby"]},
     "patterns": DEFAULT_PATTERNS, "tactileMessages": [],

@@ -3,13 +3,9 @@
    Accurate mode : YAMNet (TensorFlow.js) recognises 521 sound classes; we map the ones we care about.
    Basic mode    : if the model cannot load, a simple frequency analysis gives rough "possible ..." alerts. */
 
-const TFJS_URL = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js";
-const YAMNET_URLS = [
-  { url: "/static/models/yamnet/model.json", hub: false },                       // optional offline copy
-  { url: "https://tfhub.dev/google/tfjs-model/yamnet/tfjs/1", hub: true },
-  { url: "https://www.kaggle.com/models/google/yamnet/tfJs/tfjs/1", hub: true },
-];
-const CLASS_MAP_URLS = ["/static/models/yamnet/yamnet_class_map.csv", "https://storage.googleapis.com/audioset/yamnet/yamnet_class_map.csv"];
+const TFJS_URLS = ["/static/vendor/tf.min.js", "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"];   // own copy first
+const YAMNET_URLS = [{ url: "/static/models/yamnet/model.json", hub: false }];                                       // shipped with the app
+const CLASS_MAP_URLS = ["/static/models/yamnet/yamnet_class_map.csv", "https://raw.githubusercontent.com/tensorflow/models/master/research/audioset/yamnet/yamnet_class_map.csv"];
 
 /* YAMNet display names -> PULANOVA sound categories */
 const SOUND_RULES = [
@@ -106,21 +102,29 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify, l2norm, cosin
   const setStatus = text => { const el = $("#sound-engine"); if (el) el.textContent = text; };
 
   /* ---- model ---- */
+  let modelError = "";
   async function loadYamnet() {
-    await PUL.loadScript(TFJS_URL);
+    modelError = "";
+    try { await PUL.loadFirst(TFJS_URLS); } catch (e) { modelError = "TensorFlow.js could not be loaded"; throw new Error("model"); }
     let loaded = null;
     for (const { url, hub } of YAMNET_URLS) {
-      try { loaded = await tf.loadGraphModel(url, { fromTFHub: hub }); break; } catch (_) {}
+      try { loaded = await tf.loadGraphModel(url, { fromTFHub: hub }); break; } catch (e) { modelError = `model file ${url}: ${e.message || e}`; }
     }
     if (!loaded) throw new Error("model");
     let csv = null;
     for (const url of CLASS_MAP_URLS) {
       try { const r = await fetch(url); if (r.ok) { csv = await r.text(); break; } } catch (_) {}
     }
-    if (!csv) throw new Error("classes");
-    const names = parseClassMap(csv);
-    if (names.length < 500) throw new Error("classes");
+    const names = csv ? parseClassMap(csv) : [];
+    if (names.length < 500) { modelError = "sound class list could not be loaded"; throw new Error("classes"); }
     model = loaded; classNames = names;
+  }
+  /* Different converted models return their three outputs in different orders, so pick them by shape:
+     scores = last dimension 521, embedding = last dimension 1024. */
+  function pickOutputs(out) {
+    const list = Array.isArray(out) ? out : Object.values(out);
+    const last = t => t.shape[t.shape.length - 1];
+    return { all: list, scores: list.find(t => last(t) === 521), emb: list.find(t => last(t) === EMB_DIM) };
   }
 
   async function classifyYamnet() {
@@ -135,15 +139,15 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify, l2norm, cosin
     const input = tf.tensor(window16);
     let out;
     try { out = model.predict(input); } finally { input.dispose(); }
-    const outs = Array.isArray(out) ? out : [out];
-    const scoresT = Array.isArray(out) ? out[0] : (out.scores || out);
+    const { all: outs, scores: scoresT, emb: embT } = pickOutputs(out);
+    if (!scoresT) { outs.forEach(t => t.dispose?.()); throw new Error("The sound model returned unexpected results."); }
     const mean = scoresT.rank > 1 ? scoresT.max(0) : scoresT;
     const scores = await mean.data();
     let emb = null;                                            // fingerprint of this moment, only needed for taught sounds
-    if (customSounds.length && outs[1]) {
-      const m = outs[1].rank > 1 ? outs[1].mean(0) : outs[1];
+    if (customSounds.length && embT) {
+      const m = embT.rank > 1 ? embT.mean(0) : embT;
       const d = await m.data(); if (d.length === EMB_DIM) emb = l2norm(d);
-      if (m !== outs[1]) m.dispose();
+      if (m !== embT) m.dispose();
     }
     outs.forEach(t => t.dispose?.()); if (mean !== scoresT) mean.dispose();
     const best = {};
@@ -267,7 +271,7 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify, l2norm, cosin
         setStatus(PUL.t("Accurate sound model is running."));
       } else {
         timer = setInterval(() => { try { classifyBasic(); } catch (e) { console.warn(e); } }, 100);
-        setStatus(PUL.t("Basic mode: the sound model could not load, so results are less accurate."));
+        setStatus(PUL.t("Basic mode: the sound model could not load, so results are less accurate.") + (modelError ? ` (${modelError})` : ""));
       }
       running = true;
       PUL.say(PUL.t("Sound alerts started."), { silent: true });
@@ -324,11 +328,11 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify, l2norm, cosin
   async function embedWindow(chunk) {
     const input = tf.tensor(chunk); let out;
     try { out = model.predict(input); } finally { input.dispose(); }
-    const outs = Array.isArray(out) ? out : [out];
-    if (!outs[1]) { outs.forEach(t => t.dispose?.()); throw new Error(PUL.t("The sound model gave no fingerprint. Try again.")); }
-    const m = outs[1].rank > 1 ? outs[1].mean(0) : outs[1];
+    const { all: outs, emb: embT } = pickOutputs(out);
+    if (!embT) { outs.forEach(t => t.dispose?.()); throw new Error(PUL.t("The sound model gave no fingerprint. Try again.")); }
+    const m = embT.rank > 1 ? embT.mean(0) : embT;
     const d = await m.data();
-    if (m !== outs[1]) m.dispose(); outs.forEach(t => t.dispose?.());
+    if (m !== embT) m.dispose(); outs.forEach(t => t.dispose?.());
     if (d.length !== EMB_DIM) throw new Error(PUL.t("The sound model gave no fingerprint. Try again."));
     return l2norm(d);
   }
@@ -430,7 +434,7 @@ window.PUL_soundTest = { categorize, parseClassMap, basicClassify, l2norm, cosin
     init() {
       uiCleanup = [];
       const on = (el, ev, fn) => { if (!el) return; el.addEventListener(ev, fn); uiCleanup.push(() => el.removeEventListener(ev, fn)); };
-      renderPatterns(); teachInit(on);
+      renderPatterns(); teachInit(on); PUL.bindVibrationCheck(on);
       const flash = $("#flash-toggle"), vib = $("#vibrate-toggle"), sens = $("#sensitivity");
       if (flash) flash.checked = PUL.opts.flash; if (vib) vib.checked = PUL.opts.vibrate;
       if (sens) sens.value = PUL.store.get("pulanova-sensitivity", "3");

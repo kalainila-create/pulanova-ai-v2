@@ -257,3 +257,10 @@ PUL.loadScript = url => scriptPromises[url] || (scriptPromises[url] = new Promis
   el.onerror = () => { delete scriptPromises[url]; reject(new Error("Could not load " + url + ". Check your internet connection.")); };
   document.head.append(el);
 }));
+
+/* Try several addresses in order (our own copy first, then a CDN). */
+PUL.loadFirst = async urls => {
+  let last;
+  for (const url of urls) { try { return await PUL.loadScript(url); } catch (e) { last = e; } }
+  throw last;
+};
